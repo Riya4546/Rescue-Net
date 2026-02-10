@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RescueNet Dashboard</title>
+
+  <!-- Theme + Layout -->
+  <link rel="stylesheet" href="./css/theme.css" />
+  <link rel="stylesheet" href="./css/dashboard.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <div id="navbar"></div>
+
+  <!-- Dashboard -->
+  <main class="dashboard">
+
+    <h1>Welcome back, Guest</h1>
+    <p class="subtitle">Manage your requests and coordinate relief efforts.</p>
+
+    <!-- Toggle -->
+    <div class="toggle">
+      <button id="needHelpBtn" class="active">I Need Help</button>
+      <button id="canHelpBtn">I Can Help</button>
+    </div>
+
+    <section class="content">
+
+      <!-- LEFT: FORM -->
+      <div class="card form-card" id="needHelpSection">
+        <h2>Submit Request</h2>
+
+        <input id="title" placeholder="Title" />
+        <select id="urgency">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+        <input id="location" placeholder="Location" />
+        <textarea id="description" placeholder="Description"></textarea>
+
+        <button id="submitRequest">Broadcast Request</button>
+      </div>
+
+      <!-- RIGHT: REQUESTS -->
+      <div class="card" id="myRequests">
+        <h2>My Active Requests</h2>
+        <div id="requestsList">You haven't submitted any requests yet.</div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script type="module" src="./js/navbar.js"></script>
+  <script type="module" src="./js/dashboardUI.js"></script>
+
+</body>
+</html>
