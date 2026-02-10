@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Signup</title>
+
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Your JS file -->
+  <script defer src="js/auth.js"></script>
+</head>
+<body>
+
+  <h2>Sign Up</h2>
+
+  <input type="text" id="full_name" placeholder="Full Name"><br><br>
+  <input type="text" id="username" placeholder="Username"><br><br>
+  <input type="text" id="phone" placeholder="Phone Number"><br><br>
+  <input type="text" id="country" placeholder="Country"><br><br>
+  <input type="email" id="email" placeholder="Email"><br><br>
+  <input type="password" id="password" placeholder="Password"><br><br>
+
+  <button onclick="signUp()">Sign Up</button>
+
+</body>
+</html>
