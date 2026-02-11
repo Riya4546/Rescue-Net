@@ -1,75 +1,31 @@
-// ================================
-// LOCAL DEV DATA STORE (BROWSER SAFE)
-// ================================
-const localRequests = [];
-const localResources = [];
+import { supabase } from "./supabaseClient.js";
 
-// ---------- REQUESTS ----------
+/**
+ * Fetches all dashboard data in a single parallel burst (O(1) sequential time)
+ */
+export async function loadDashboardData(userId) {
+    try {
+        const [myReqs, urgentReqs, resources] = await Promise.all([
+            supabase.from("help_requests").select("*").eq("created_by", userId).order("created_at", { ascending: false }),
+            supabase.from("help_requests").select("*", { count: 'exact', head: true }).in("urgency", ["high", "critical"]).eq("status", "open"),
+            supabase.from("resources").select("*", { count: 'exact', head: true })
+        ]);
+
+        return {
+            myRequests: myReqs.data || [],
+            urgentCount: urgentReqs.count || 0,
+            resourceCount: resources.count || 0
+        };
+    } catch (err) {
+        console.error("Data fetch error:", err);
+        return null;
+    }
+}
 
 export async function submitHelpRequest(data, userId) {
-  const request = {
-    id: crypto.randomUUID(),
-    title: data.title,
-    urgency: data.urgency,
-    location: data.location,
-    description: data.description,
-    status: "open",
-    created_by: userId,
-    created_at: new Date().toISOString()
-  };
-
-  localRequests.push(request);
-  return request;
+    return await supabase.from("help_requests").insert([{ ...data, created_by: userId }]);
 }
 
-export async function getMyRequests(userId) {
-  return localRequests.filter(r => r.created_by === userId);
-}
-
-export async function getUrgentRequests() {
-  return localRequests.filter(
-    r =>
-      r.status === "open" &&
-      (r.urgency === "high" || r.urgency === "critical")
-  );
-}
-
-export async function resolveRequest(requestId, userId) {
-  const req = localRequests.find(r => r.id === requestId);
-  if (!req) throw new Error("Request not found");
-  if (req.created_by !== userId) throw new Error("Unauthorized");
-
-  req.status = "resolved";
-  return req;
-}
-
-// ---------- RESOURCES ----------
-
-export async function offerResource(data, userId) {
-  const resource = {
-    id: crypto.randomUUID(),
-    title: data.title,
-    type: data.type,
-    quantity: data.quantity,
-    pickupLocation: data.location,
-    offered_by: userId,
-    created_at: new Date().toISOString()
-  };
-
-  localResources.push(resource);
-  return resource;
-}
-
-export async function getResources() {
-  return localResources;
-}
-
-// ---------- DASHBOARD ----------
-
-export async function loadDashboard(userId) {
-  return {
-    myRequests: await getMyRequests(userId),
-    urgentRequests: await getUrgentRequests(),
-    resources: await getResources()
-  };
+export async function resolveRequest(requestId) {
+    return await supabase.from("help_requests").update({ status: "resolved" }).eq("id", requestId);
 }
