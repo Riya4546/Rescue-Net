@@ -8,8 +8,3 @@ export const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
-// TEMP TEST – remove later
-(async () => {
-  const { data, error } = await supabase.from("help_requests").select("*").limit(1);
-  console.log("Supabase test:", data, error);
-})();

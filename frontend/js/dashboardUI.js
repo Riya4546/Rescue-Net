@@ -1,146 +1,108 @@
-import {
-  submitHelpRequest,
-  loadDashboard,
-  resolveRequest,
-  offerResource
-} from "./dashboardClient.js";
+import { dashboardClient } from "./dashboardClient.js";
 
-// DEV USER (until auth is ready)
-const DEV_USER_ID = "local-dev-user";
+// DOM Elements
+const tabNeedHelp = document.getElementById("tabNeedHelp");
+const tabCanHelp = document.getElementById("tabCanHelp");
+const needHelpSection = document.getElementById("needHelpSection");
+const canHelpSection = document.getElementById("canHelpSection");
 
-/* ---------------- DOM ---------------- */
-
-// Stats
+const requestsList = document.getElementById("requestsList");
 const activeCount = document.getElementById("activeCount");
 const urgentCount = document.getElementById("urgentCount");
 const resourceCount = document.getElementById("resourceCount");
 
-// Toggle
-const needHelpBtn = document.getElementById("needHelpBtn");
-const canHelpBtn = document.getElementById("canHelpBtn");
-
-const needHelpSection = document.getElementById("needHelpSection");
-const canHelpSection = document.getElementById("canHelpSection");
-
-// Request form
-const submitBtn = document.getElementById("submitRequest");
-const list = document.getElementById("requestsList");
-
-const titleInput = document.getElementById("title");
-const urgencySelect = document.getElementById("urgency");
-const locationInput = document.getElementById("location");
-const descriptionInput = document.getElementById("description");
-
-// Resource form
-const resourceTitle = document.getElementById("resourceTitle");
-const resourceType = document.getElementById("resourceType");
-const resourceQuantity = document.getElementById("resourceQuantity");
-const resourceLocation = document.getElementById("resourceLocation");
-const offerResourceBtn = document.getElementById("offerResourceBtn");
-
-/* ---------------- UI LOGIC ---------------- */
-
-// Toggle logic
-needHelpBtn.onclick = () => {
-  needHelpBtn.classList.add("active");
-  canHelpBtn.classList.remove("active");
-  needHelpSection.style.display = "block";
-  canHelpSection.style.display = "none";
+/* --- TOGGLE LOGIC --- */
+tabNeedHelp.onclick = () => {
+    tabNeedHelp.classList.add("active");
+    tabCanHelp.classList.remove("active");
+    needHelpSection.style.display = "block";
+    canHelpSection.style.display = "none";
 };
 
-canHelpBtn.onclick = () => {
-  canHelpBtn.classList.add("active");
-  needHelpBtn.classList.remove("active");
-  needHelpSection.style.display = "none";
-  canHelpSection.style.display = "block";
+tabCanHelp.onclick = () => {
+    tabCanHelp.classList.add("active");
+    tabNeedHelp.classList.remove("active");
+    canHelpSection.style.display = "block";
+    needHelpSection.style.display = "none";
 };
 
-// Refresh dashboard
-async function refreshDashboard() {
-  const data = await loadDashboard(DEV_USER_ID);
+/* --- DATA SYNC --- */
+async function refreshDisplay() {
+    try {
+        // Correctly calling the method on the imported object
+        const data = await dashboardClient.getInitialData();
+        
+        activeCount.innerText = data.requests.length;
+        urgentCount.innerText = data.urgentCount;
+        resourceCount.innerText = data.resourceCount;
 
-  activeCount.textContent =
-    data.myRequests.filter(r => r.status === "open").length;
+        if (data.requests.length === 0) {
+            requestsList.innerHTML = "<p>No active requests found.</p>";
+            return;
+        }
 
-  urgentCount.textContent = data.urgentRequests.length;
-  resourceCount.textContent = data.resources.length;
-
-  if (data.myRequests.length === 0) {
-    list.innerHTML = "You haven't submitted any requests yet.";
-    return;
-  }
-
-  list.innerHTML = data.myRequests.map(r => `
-    <div class="request">
-      <strong>${r.title}</strong><br/>
-      <span class="urgency ${r.urgency}">${r.urgency}</span>
-      <div>${r.location}</div>
-
-      ${
-        r.status === "open"
-          ? `<button data-id="${r.id}" class="resolve-btn">Resolve</button>`
-          : `<em>Resolved</em>`
-      }
-    </div>
-  `).join("");
+        requestsList.innerHTML = data.requests.map(req => `
+            <div class="request-item">
+                <span class="badge ${req.urgency}">${req.urgency}</span>
+                <h4>${req.title}</h4>
+                <p>${req.description || ''}</p>
+                <small>📍 ${req.location}</small>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error("UI Sync Error:", err);
+    }
 }
 
-// Submit help request
-submitBtn.onclick = async () => {
-  try {
-    await submitHelpRequest(
-      {
-        title: titleInput.value,
-        urgency: urgencySelect.value,
-        location: locationInput.value,
-        description: descriptionInput.value
-      },
-      DEV_USER_ID
-    );
+/* --- FORM SUBMISSIONS --- */
+document.getElementById("helpForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitRequestBtn");
+    const payload = {
+        title: document.getElementById("reqTitle").value,
+        urgency: document.getElementById("reqUrgency").value,
+        location: document.getElementById("reqLocation").value,
+        description: document.getElementById("reqDescription").value
+    };
 
-    titleInput.value = "";
-    urgencySelect.value = "low";
-    locationInput.value = "";
-    descriptionInput.value = "";
+    btn.disabled = true;
+    btn.innerText = "Posting...";
 
-    refreshDashboard();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to submit request");
-  }
+    try {
+        await dashboardClient.postRequest(payload);
+        e.target.reset();
+        await refreshDisplay();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Post Request";
+    }
 };
 
-// Resolve request
-list.onclick = async (e) => {
-  if (e.target.classList.contains("resolve-btn")) {
-    await resolveRequest(e.target.dataset.id, DEV_USER_ID);
-    refreshDashboard();
-  }
+document.getElementById("resourceForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitResourceBtn");
+    const payload = {
+        title: document.getElementById("resTitle").value,
+        type: document.getElementById("resType").value,
+        quantity: document.getElementById("resQty").value,
+        location: document.getElementById("resLocation").value
+    };
+
+    btn.disabled = true;
+    btn.innerText = "Registering...";
+
+    try {
+        await dashboardClient.offerResource(payload);
+        e.target.reset();
+        await refreshDisplay();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Offer Resource";
+    }
 };
 
-// Offer resource
-offerResourceBtn.onclick = async () => {
-  try {
-    await offerResource(
-      {
-        title: resourceTitle.value,
-        type: resourceType.value,
-        quantity: Number(resourceQuantity.value),
-        location: resourceLocation.value
-      },
-      DEV_USER_ID
-    );
-
-    resourceTitle.value = "";
-    resourceQuantity.value = "";
-    resourceLocation.value = "";
-
-    refreshDashboard();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to register resource");
-  }
-};
-
-// Init
-refreshDashboard();
+document.addEventListener("DOMContentLoaded", refreshDisplay);
