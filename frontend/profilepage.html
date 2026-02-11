@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Profile</title>
+</head>
+<body>
+
+<h2>My Profile</h2>
+
+<p>Email: <span id="email"></span></p>
+
+<button onclick="logout()">Logout</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const supabaseClient = supabase.createClient(
+    "https://cmefmcawnugopzrotrem.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI"
+  );
+
+  async function loadProfile() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    document.getElementById("email").innerText = user.email;
+  }
+
+  async function logout() {
+    await supabaseClient.auth.signOut();
+    window.location.href = "login.html";
+  }
+
+  loadProfile();
+</script>
+
+</body>
+</html>

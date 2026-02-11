@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueNet | Donate</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-green: #e87a41;
+            --text-gray: #4a4a4a;
+            --glass-white: rgba(255, 255, 255, 0.65);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* The Exact Background with Low Opacity Effect */
+        .page-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop'); 
+            background-size: cover;
+            background-position: center;
+            z-index: -1;
+        }
+
+        /* Overlay to achieve the "less opacity" washed out look */
+        .bg-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.4); /* This creates the faded look */
+            backdrop-filter: grayscale(20%);
+        }
+
+        /* Main Donation Card */
+        .donation-card {
+            background: var(--glass-white);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 32px;
+            width: 90%;
+            max-width: 420px;
+            padding: 45px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        h2 { font-size: 15px; color: #666; font-weight: 500; margin-bottom: 8px; }
+        h1 { font-size: 28px; margin: 0 0 15px 0; font-weight: 700; color: #111; line-height: 1.2; }
+        .description { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 30px; }
+
+        /* Toggle Button */
+        .toggle-switch {
+            background: #e0e0e0;
+            border-radius: 50px;
+            display: inline-flex;
+            padding: 4px;
+            margin-bottom: 25px;
+        }
+        .toggle-opt {
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .toggle-opt.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+        /* Amount Selector */
+        .amounts {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .amt-btn {
+            flex: 1;
+            padding: 14px 0;
+            border: 2px solid var(--primary-green);
+            background: white;
+            border-radius: 14px;
+            color: var(--primary-green);
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .amt-btn.selected, .amt-btn:hover { background: var(--primary-green); color: white; }
+
+        .custom-input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            background: rgba(255,255,255,0.8);
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        /* Bank Details Box */
+        .bank-box {
+            background: rgba(240, 240, 240, 0.5);
+            border: 1.5px dashed #ccc;
+            border-radius: 16px;
+            padding: 18px;
+            text-align: left;
+            margin-bottom: 25px;
+        }
+        .bank-title { font-size: 13px; font-weight: 700; color: var(--primary-green); margin-bottom: 12px; display: block; }
+        .row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; color: #333; }
+        .val { font-weight: 700; font-family: 'Courier New', monospace; }
+        .copy { color: var(--primary-green); cursor: pointer; font-size: 11px; text-transform: uppercase; border: 1px solid #27ae60; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+
+        /* Final Button */
+        .complete-btn {
+            background: var(--primary-green);
+            color: white;
+            width: 100%;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrapper"><div class="bg-overlay"></div></div>
+
+<div class="donation-card">
+    <h2>Impact First</h2>
+    <h1>You have the power to change a life today</h1>
+    <p class="description">Your contribution directly provides food and medical care to those in need.</p>
+
+    <div class="toggle-switch">
+        <div class="toggle-opt active">One-time</div>
+        <div class="toggle-opt">Monthly</div>
+    </div>
+
+    <div class="amounts">
+        <button class="amt-btn">$10</button>
+        <button class="amt-btn selected">$50</button>
+        <button class="amt-btn">$100</button>
+    </div>
+
+    <input type="number" class="custom-input" placeholder="Other Amount">
+
+    <div class="bank-box">
+        <span class="bank-title">Direct Bank Transfer</span>
+        <div class="row">
+            <span>Bank Name</span>
+            <span class="val">Global Hope Bank</span>
+        </div>
+        <div class="row">
+            <span>A/C Number</span>
+            <span class="val">9876 5432 1010 <span class="copy" onclick="copy('987654321010')">Copy</span></span>
+        </div>
+        <div class="row">
+            <span>SWIFT Code</span>
+            <span class="val">HOPEGL22 <span class="copy" onclick="copy('HOPEGL22')">Copy</span></span>
+        </div>
+    </div>
+
+    <button class="complete-btn">Complete Donation</button>
+</div>
+
+<script>
+    function copy(text) {
+        navigator.clipboard.writeText(text);
+        alert("Copied to clipboard!");
+    }
+</script>
+
+</body>
+</html>
