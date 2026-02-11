@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueNet | Portal</title>
+    <link rel="stylesheet" href="portal-style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="portal-body">
+
+    <aside class="sidebar">
+        <div class="profile-section">
+            <div class="profile-icon">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <h3>Welcome Back</h3>
+            <p>Member Dashboard</p>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="#" class="active"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="#"><i class="fas fa-user"></i> Profile Settings</a>
+            <a href="#"><i class="fas fa-bell"></i> Alerts</a>
+            <hr class="nav-divider">
+            <a href="index.html" class="logout"><i class="fas fa-power-off"></i> Logout</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="portal-header">
+            <h1>What is your mission today?</h1>
+            <p>Your actions save lives. Choose an option to proceed.</p>
+        </header>
+
+        <section class="selection-grid">
+            <div class="action-card request" id="requestBtn">
+                <div class="icon-container">
+                    <i class="fas fa-bullhorn"></i>
+                </div>
+                <h2>Request Help</h2>
+                <p>In need of urgent assistance? Submit a request for medical aid, food, or rescue teams.</p>
+                <button class="btn-action">Get Assistance</button>
+            </div>
+
+            <div class="action-card volunteer" id="volunteerBtn">
+                <div class="icon-container">
+                    <i class="fas fa-hand-holding-heart"></i>
+                </div>
+                <h2>Volunteer</h2>
+                <p>Ready to help? Sign up for active missions, coordinate supplies, or join a rescue squad.</p>
+                <button class="btn-action">Join Mission</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="portal-script.js"></script>
+</body>
+</html>

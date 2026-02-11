@@ -1,0 +1,187 @@
+:root {
+    --orange: #e67e22;
+    --orange-dark: #d35400;
+    --blue: #3498db;
+    --dark: #333;
+    --white: #ffffff;
+    --bg-light: #f4f7f6;
+    --sidebar-bg: #2c3e50;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body.portal-body {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* Use a high-quality humanitarian/abstract background */
+    background: linear-gradient(rgba(244, 247, 246, 0.85), rgba(244, 247, 246, 0.85)), 
+                url('https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&q=80&w=2000');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; /* Keeps image still while scrolling */
+    display: flex;
+    min-height: 100vh;
+    margin: 0;
+}
+
+/* --- Sidebar Styling --- */
+.sidebar {
+    width: 280px;
+    background: var(--sidebar-bg);
+    color: var(--white);
+    display: flex;
+    flex-direction: column;
+    padding: 40px 20px;
+    position: fixed;
+    height: 100%;
+}
+
+.profile-section {
+    text-align: center;
+    padding-bottom: 30px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.profile-icon {
+    font-size: 4.5rem;
+    color: var(--orange); /* Matches Landing Page Orange */
+    margin-bottom: 15px;
+}
+
+.sidebar-nav {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sidebar-nav a {
+    color: #ecf0f1;
+    text-decoration: none;
+    padding: 15px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sidebar-nav a:hover, .sidebar-nav a.active {
+    background: rgba(255,255,255,0.05);
+    color: var(--orange);
+    box-shadow: inset 4px 0 0 var(--orange);
+}
+
+.sidebar {
+    width: 280px;
+    background: rgba(44, 62, 80, 0.98); /* Matching your landing page theme */
+    color: var(--white);
+    display: flex;
+    flex-direction: column;
+    padding: 40px 20px;
+    position: fixed;
+    height: 100%;
+    z-index: 10;
+}
+.nav-divider {
+    border: 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    margin: 20px 0;
+}
+
+.logout { color: #e74c3c !important; }
+
+/* --- Main Content Area --- */
+.main-content {
+    margin-left: 280px; 
+    flex: 1;
+    padding: 80px 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* This ensures the content area feels modern and airy */
+    background: transparent; 
+}
+
+.portal-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.portal-header h1 {
+    font-size: 2.5rem;
+    color: var(--dark);
+    margin-bottom: 10px;
+}
+
+.portal-header p {
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* --- Selection Grid --- */
+.selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 40px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+.action-card {
+    background: rgba(255, 255, 255, 0.95); /* Slightly see-through */
+    backdrop-filter: blur(5px); /* Blurs the background behind the card */
+    padding: 60px 40px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border-top: 6px solid transparent;
+}
+
+.action-card:hover {
+    transform: translateY(-12px);
+    background: var(--white); /* Goes solid white on hover */
+    box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+}
+
+/* Match Landing Page Blue and Orange */
+.action-card.request { border-top-color: var(--blue); }
+.action-card.volunteer { border-top-color: var(--orange); }
+
+.icon-container {
+    font-size: 4rem;
+    margin-bottom: 25px;
+}
+
+.request .icon-container { color: var(--blue); }
+.volunteer .icon-container { color: var(--orange); }
+
+.action-card h2 {
+    margin-bottom: 15px;
+    color: var(--dark);
+}
+
+.action-card p {
+    color: #777;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.btn-action {
+    background: var(--dark);
+    color: var(--white);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.request:hover .btn-action { background: var(--blue); }
+.volunteer:hover .btn-action { background: var(--orange); }
