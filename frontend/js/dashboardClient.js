@@ -4,6 +4,7 @@ const DEV_USER_ID = "local-dev-user";
 
 export const dashboardClient = {
     async getInitialData() {
+        // Parallel fetch for speed
         const [requests, urgent, resources] = await Promise.all([
             supabase.from('help_requests').select('*').order('created_at', { ascending: false }),
             supabase.from('help_requests').select('id', { count: 'exact', head: true }).eq('urgency', 'critical').eq('status', 'open'),
