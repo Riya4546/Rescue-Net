@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us | RescueNet India</title>
+    <style>
+        :root {
+            --primary-blue: #2c7ebf;
+            --primary-orange: #e87a41;
+            --bg-light: #f4f7f9;
+            --text-dark: #1a1a1a;
+            --white: #ffffff;
+            --border-gray: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: var(--bg-light);
+            margin: 0;
+            color: var(--text-dark);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* --- Header Section --- */
+        .header-section {
+            background: var(--white);
+            padding: 50px;
+            border-radius: 4px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-left: 8px solid var(--primary-blue);
+            margin-bottom: 40px;
+        }
+
+        .tagline {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin: 0;
+            text-transform: uppercase;
+            line-height: 1.1;
+        }
+
+        h1 span { color: var(--primary-blue); }
+
+        /* --- Vision & Mission Section --- */
+        .vision-mission {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .info-card {
+            background: var(--white);
+            padding: 30px;
+            border-radius: 4px;
+            border-top: 4px solid var(--primary-orange);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        .info-card h2 {
+            color: var(--primary-blue);
+            font-size: 1.5rem;
+            margin-top: 0;
+            text-transform: uppercase;
+        }
+
+        /* --- Values Section --- */
+        .values-bar {
+            background: var(--primary-blue);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-around;
+            border-radius: 4px;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+
+        .value-item b { display: block; font-size: 1.2rem; }
+        .value-item span { font-size: 0.8rem; text-transform: uppercase; opacity: 0.8; }
+
+        /* --- Mission Grid --- */
+        .section-title {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mission-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .mission-box {
+            background: var(--white);
+            padding: 25px;
+            border-radius: 4px;
+            border: 1px solid var(--border-gray);
+            transition: all 0.3s ease;
+        }
+
+        .mission-box:hover {
+            border-color: var(--primary-orange);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.05);
+        }
+
+        .year-badge {
+            display: inline-block;
+            background: var(--primary-orange);
+            color: white;
+            padding: 3px 10px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border-radius: 2px;
+            margin-bottom: 12px;
+        }
+
+        .state-text {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .mission-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+        }
+
+        .mission-box p {
+            font-size: 0.9rem;
+            color: #555;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .vision-mission { grid-template-columns: 1fr; }
+            .values-bar { flex-direction: column; gap: 20px; }
+            h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header class="header-section">
+        <span class="tagline">Saving Lives Through Coordination</span>
+        <h1>About <span>RescueNet</span></h1>
+    </header>
+
+    <div class="vision-mission">
+        <div class="info-card">
+            <h2>Our Vision</h2>
+            <p>To create a disaster-resilient India where no life is lost due to a lack of coordination or delayed response. We aim to integrate technology and human courage into a single "Rescue Net" that covers every corner of the nation.</p>
+        </div>
+        <div class="info-card">
+            <h2>Our Mission</h2>
+            <p>Our mission is to provide rapid, organized, and technical relief during natural and man-made disasters. We coordinate between government bodies, local volunteers, and specialized rescue units to ensure aid reaches the most vulnerable within the "Golden Hour."</p>
+        </div>
+    </div>
+
+    <div class="values-bar">
+        <div class="value-item"><b>Integrity</b><span>Honest Service</span></div>
+        <div class="value-item"><b>Bravery</b><span>Leading the Front</span></div>
+        <div class="value-item"><b>Innovation</b><span>Tech-Driven Rescue</span></div>
+        <div class="value-item"><b>Unity</b><span>One Nation, One Net</span></div>
+    </div>
+
+    <h2 class="section-title">Operations Archive (Since 2015)</h2>
+
+    <div class="mission-grid">
+        <div class="mission-box">
+            <span class="year-badge">2015</span>
+            <span class="state-text">Tamil Nadu</span>
+            <h3>Chennai Urban Rescue</h3>
+            <p>Managed 50+ specialized boats to rescue over 10,000 citizens from severe urban flooding.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2016</span>
+            <span class="state-text">Assam</span>
+            <h3>Brahmaputra Flood Relief</h3>
+            <p>Emergency evacuation of riverside communities and livestock during massive monsoon surges.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2017</span>
+            <span class="state-text">Gujarat</span>
+            <h3>Banaskantha Floods</h3>
+            <p>Provided ground-zero logistical support for air-lifting isolated villagers during flash floods.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2018</span>
+            <span class="state-text">Kerala</span>
+            <h3>Great Kerala Flood Mission</h3>
+            <p>Coordinated the deployment of 1,000+ rescue crafts in the state's most severe flood in a century.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2019</span>
+            <span class="state-text">Odisha</span>
+            <h3>Cyclone Fani Response</h3>
+            <p>Successfully moved 1.2 million people to shelters within 48 hours before landfall.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2020</span>
+            <span class="state-text">West Bengal</span>
+            <h3>Super Cyclone Amphan</h3>
+            <p>Restored critical infrastructure and provided medical aid to coastal Sundarbans regions.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2021</span>
+            <span class="state-text">Uttarakhand</span>
+            <h3>Chamoli Glacier Burst</h3>
+            <p>Deep-tunnel technical rescue missions for laborers trapped by sudden glacial debris.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2021</span>
+            <span class="state-text">Maharashtra</span>
+            <h3>Mahad Landslide Rescue</h3>
+            <p>24/7 debris clearance and life-saving extraction in the Raigad landslide zone.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2023</span>
+            <span class="state-text">Gujarat</span>
+            <h3>Cyclone Biparjoy</h3>
+            <p>A massive preventive operation resulting in zero human casualties across the Kutch coastline.</p>
+        </div>
+        <div class="mission-box">
+            <span class="year-badge">2023</span>
+            <span class="state-text">Uttarakhand</span>
+            <h3>Silkyara Tunnel Operation</h3>
+            <p>Provided the critical coordination link for the 17-day mission to save 41 trapped workers.</p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -161,8 +161,10 @@
             <div class="logo"><i class="fas fa-shield-alt"></i> RescueNet</div>
             <div class="nav-container">
                 <button class="btn-home" onclick="window.scrollTo(0,0)">Home</button>
-                <button class="btn-aboutus">About Us</button>
-                <button class="btn-donation">Donation</button>
+                <button class="btn-aboutus" onclick="goAbout()">About Us</button>
+
+                <button class="btn-donation" onclick="goDonation()">Donation</button>
+
                 <a href="#feedback"><button class="btn-feedback">Feedback</button></a>
                 <a href="#contact"><button class="btn-contactus">Contact Us</button></a>
             </div>
@@ -174,9 +176,10 @@
             <h1>CONNECTING HOPE. COORDINATING AID.</h1>
             <p>Uniting Volunteers, NGOs & Affected Communities In Times of Crisis</p>
             <div class="hero-btns">
-                <button class="btn btn-blue">LOGIN</button>
-                <button class="btn btn-orange">SIGN UP</button>
-            </div>
+    <button class="btn btn-blue" onclick="goLogin()">LOGIN</button>
+    <button class="btn btn-orange" onclick="goSignup()">SIGN UP</button>
+</div>
+
         </div>
     </section>
 
@@ -298,5 +301,29 @@
             window.scrollTo({ top: 0, behavior: "smooth" });
         });
     </script>
+    <script>
+    function goLogin() {
+        window.location.href = "login.html";
+    }
+
+    function goSignup() {
+        window.location.href = "signup.html";
+    }
+</script>
+<script>
+    function goAbout() {
+        window.location.href = "about.html";
+    }
+</script>
+<script>
+ 
+
+    function goDonation() {
+        window.location.href = "donation.html";
+    }
+</script>
+
+
+
 </body>
 </html>
