@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Volunteer Hub</title>
+    <link rel="stylesheet" href="css/theme.css">
+    <style>
+        .col-header { 
+            display: flex; align-items: center; gap: 10px; margin-bottom: 15px; 
+            padding-bottom: 10px; border-bottom: 2px solid var(--border);
+            font-weight: 700; font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="dashboard.html" class="nav-link" style="margin-left: 0;">&larr; Back to Dashboard</a>
+        <div class="brand">Volunteer <span>Mission Control</span></div>
+    </nav>
+
+    <div class="container">
+        
+        <div class="card-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start;">
+
+            <section>
+                <div class="col-header" style="color: var(--danger);">
+                    <span>🚨 Urgent Needs</span>
+                </div>
+                <div id="urgentList" style="display: flex; flex-direction: column; gap: 15px;">
+                    <p style="color:var(--gray)">Loading data...</p>
+                </div>
+            </section>
+
+            <section>
+                <div class="col-header" style="color: var(--blue);">
+                    <span>⚡ My Active Missions</span>
+                </div>
+                <div id="activeList" style="display: flex; flex-direction: column; gap: 15px;"></div>
+            </section>
+
+            <section>
+                <div class="col-header" style="color: var(--success);">
+                    <span>✅ Completed History</span>
+                </div>
+                <div id="historyList" style="display: flex; flex-direction: column; gap: 15px;"></div>
+            </section>
+
+        </div>
+    </div>
+
+    <script type="module" src="js/volunteerUI.js"></script>
+
+</body>
+</html>
