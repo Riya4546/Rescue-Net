@@ -1,64 +1,37 @@
-/**
- * API SERVICE (Optimized)
- * Features: Debouncing support structure & Response Caching
- * Time Complexity: O(1) for cached hits.
- */
-
-const requestCache = new Map();
-
 export const apiService = {
 
-    // --- 1. MAPS API (OpenStreetMap) ---
+    // 1. AUTO-COMPLETE (Search by Name)
     async searchLocation(query) {
         if (!query || query.length < 3) return [];
         
-        // Cache Check O(1)
-        const cacheKey = `loc_${query.toLowerCase()}`;
-        if (requestCache.has(cacheKey)) return requestCache.get(cacheKey);
-        
         try {
+            // Using OpenStreetMap (Nominatim) - FREE
             const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
             const response = await fetch(url);
             const data = await response.json();
             
-            const results = data.map(place => ({
+            return data.map(place => ({
                 display_name: place.display_name,
-                lat: parseFloat(place.lat),
-                lon: parseFloat(place.lon)
+                lat: place.lat,
+                lon: place.lon
             }));
-
-            // Store in Cache
-            requestCache.set(cacheKey, results);
-            return results;
         } catch (error) {
-            console.error("Map API Error:", error);
+            console.error("Map Error:", error);
             return [];
         }
     },
 
-    // --- 2. MEDICINE API (OpenFDA) ---
-    async searchMedicine(query) {
-        if (!query || query.length < 3) return [];
-
-        const cacheKey = `med_${query.toLowerCase()}`;
-        if (requestCache.has(cacheKey)) return requestCache.get(cacheKey);
-
+    // 2. REVERSE GEOCODE (Get Address from Lat/Lon)
+    // This is needed for the "Current Location" button
+    async getAddressFromCoords(lat, lon) {
         try {
-            const url = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:"${query}"*&limit=5`;
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
             const response = await fetch(url);
             const data = await response.json();
-
-            if (!data.results) return [];
-
-            const results = data.results.map(drug => ({
-                name: drug.openfda.brand_name ? drug.openfda.brand_name[0] : "Unknown",
-                generic: drug.openfda.generic_name ? drug.openfda.generic_name[0] : ""
-            }));
-
-            requestCache.set(cacheKey, results);
-            return results;
+            return data.display_name || "Unknown Location";
         } catch (error) {
-            return [];
+            console.error("Geocoding Error:", error);
+            return "Locating failed.";
         }
     }
 };

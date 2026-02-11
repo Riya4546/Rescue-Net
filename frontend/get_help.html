@@ -2,8 +2,53 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Request Help</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Help | RescueNet</title>
     <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Specific styles for the location search dropdown */
+        #location-suggestions {
+            display: none;
+            position: absolute;
+            width: 100%;
+            background: white;
+            border: 1px solid #ddd;
+            z-index: 1000;
+            list-style: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 5px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        #location-suggestions li {
+            padding: 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        #location-suggestions li:hover {
+            background: #f8f9fa;
+            color: var(--blue);
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-icon {
+            background: var(--dark);
+            color: rgb(4, 135, 235);
+            border: none;
+            padding: 0 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .btn-icon:hover { opacity: 0.8; }
+    </style>
 </head>
 <body>
 
@@ -14,11 +59,10 @@
 
     <div class="container">
         <div class="card" style="max-width: 600px; margin: 0 auto;">
-            
             <form id="helpForm">
                 <div class="form-group">
                     <label>Title of Emergency</label>
-                    <input type="text" id="reqTitle" placeholder="e.g., Flooded House, Insulin Needed" required>
+                    <input type="text" id="reqTitle" placeholder="e.g., Flooded House, Medical Help Needed" required>
                 </div>
 
                 <div class="form-group">
@@ -43,18 +87,36 @@
                     </select>
                 </div>
 
-                <div id="medical-inputs" style="display:none; background: #eff6ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <label style="color: var(--blue);">Medical Specifics</label>
-                    <select id="medType" style="margin-bottom: 10px;">
-                        <option value="assistance">Doctor/Nurse Assistance</option>
-                        <option value="medicine">Medicine Needed</option>
+                <div id="medical-inputs" style="display:none; background: #eff6ff; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--blue);">
+                    <label style="color: var(--blue); font-weight: bold; margin-bottom: 10px; display: block;">Medical Specifics</label>
+                    
+                    <select id="medType" style="margin-bottom: 10px;" onchange="window.handleMedicalType(this.value)">
+                        <option value="">Select Service Type</option>
+                        <option value="assistance">Doctor / Medical Staff</option>
+                        <option value="medicine">Medicine / Pharmacy</option>
                     </select>
-                    <input type="text" id="medName" placeholder="Medicine Name (e.g. Paracetamol)" style="margin-bottom: 10px;">
-                    <input type="number" id="medQty" placeholder="Quantity (Max 500)" max="500">
+
+                    <div id="doctor-fields" style="display:none; margin-top:10px;">
+                        <label style="font-size:0.85em; color:#555;">Required Specialist:</label>
+                        <select id="docDept">
+                            <option value="">Select Department</option>
+                            <option value="General Medicine">General Medicine</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Neurology">Neurology</option>
+                            <option value="Emergency/Trauma">Emergency / Trauma</option>
+                        </select>
+                    </div>
+
+                    <div id="medicine-fields" style="display:none; margin-top:10px;">
+                        <input type="text" id="medName" placeholder="Medicine Name" style="margin-bottom: 10px;">
+                        <input type="number" id="medQty" placeholder="Quantity (Max 500)" max="500">
+                    </div>
                 </div>
 
-                <div id="blood-inputs" style="display:none; background: #fef2f2; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                    <label style="color: var(--danger);">Blood Requirements</label>
+                <div id="blood-inputs" style="display:none; background: #fef2f2; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--danger);">
+                    <label style="color: var(--danger); font-weight: bold; margin-bottom: 10px; display: block;">Blood Requirements</label>
                     <select id="bloodGroup" style="margin-bottom: 10px;">
                         <option value="">Select Blood Group</option>
                         <option value="A+">A+</option><option value="A-">A-</option>
@@ -65,26 +127,39 @@
                     <input type="number" id="bloodQty" placeholder="Amount (in ml)">
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="position: relative;">
                     <label>Location</label>
-                    <input type="text" id="reqLocation" placeholder="Type to search..." oninput="window.searchLocation(this.value)" required>
+                    <div class="input-group">
+                        <input type="text" id="reqLocation" placeholder="Type location or use GPS" autocomplete="off" required>
+                        <button type="button" class="btn-icon" onclick="window.getLocation()" title="Share Current Location">
+                            <i class="fas fa-crosshairs"></i>
+                        </button>
+                    </div>
+                    <ul id="location-suggestions"></ul>
                 </div>
 
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea id="reqDescription" rows="3" placeholder="Additional details..."></textarea>
+                    <textarea id="reqDescription" rows="3" placeholder="Additional details to help volunteers find you..." required></textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="background-color: var(--danger);">Submit Request</button>
+                <button type="submit" class="btn btn-primary" style="background-color: var(--orange); width: 100%; padding: 15px; font-size: 1.1rem;">
+                    Submit Request
+                </button>
             </form>
         </div>
 
-        <div style="margin-top: 40px; max-width: 800px; margin-left: auto; margin-right: auto;">
-            <h3 style="border-bottom: 2px solid var(--border); padding-bottom: 10px;">Your Active Requests</h3>
-            <div id="listActive" class="card-grid" style="margin-top: 20px;"></div>
+        <div style="margin-top: 50px; max-width: 900px; margin-left: auto; margin-right: auto;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                <i class="fas fa-clock" style="color: var(--orange);"></i>
+                <h2 style="margin: 0;">Your Live Requests</h2>
+            </div>
+
+            <h3 style="font-size: 1rem; color: var(--gray); border-bottom: 1px solid var(--border); padding-bottom: 10px;">In Progress</h3>
+            <div id="listActive" class="card-grid" style="margin-top: 20px; margin-bottom: 40px;"></div>
             
-            <h3 style="margin-top: 30px; border-bottom: 2px solid var(--border); padding-bottom: 10px;">Pending Queue</h3>
-             <div id="listQueue" class="card-grid" style="margin-top: 20px;"></div>
+            <h3 style="font-size: 1rem; color: var(--gray); border-bottom: 1px solid var(--border); padding-bottom: 10px;">Awaiting Volunteers</h3>
+            <div id="listQueue" class="card-grid" style="margin-top: 20px;"></div>
         </div>
     </div>
 

@@ -91,15 +91,21 @@ export const BackendService = {
 
         switch (category) {
             case 'medical':
+                // Sub-Type: Medicine
                 if (input.medicalType === 'medicine') {
                     if (!input.medicineName) throw new Error("Medicine Name is required.");
-                    // Limit check: Max 500
                     if (!input.medicineQty || isNaN(input.medicineQty) || input.medicineQty > 500) {
                         throw new Error("Invalid Quantity (Max 500).");
                     }
                     specificDetails = { sub_type: 'medicine', name: input.medicineName, qty: input.medicineQty };
+                
+                // Sub-Type: Assistance (Doctor)
+                } else if (input.medicalType === 'assistance') {
+                    if (!input.docDept) throw new Error("Please select the Department/Specialist required.");
+                    specificDetails = { sub_type: 'assistance', department: input.docDept };
+                
                 } else {
-                    specificDetails = { sub_type: 'assistance' };
+                    throw new Error("Please select a valid Medical Service Type.");
                 }
                 break;
 
