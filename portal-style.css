@@ -185,3 +185,59 @@ body.portal-body {
 
 .request:hover .btn-action { background: var(--blue); }
 .volunteer:hover .btn-action { background: var(--orange); }
+.stats-container {
+    display: flex;
+    justify-content: flex-end; /* Matches your screenshot alignment */
+    gap: 20px;
+    width: 100%;
+    max-width: 1000px;
+    margin-bottom: 40px;
+}
+
+.stat-box {
+    background: var(--white);
+    padding: 15px 25px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 160px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: #95a5a6;
+    letter-spacing: 1px;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--dark-blue);
+}
+
+.stat-indicator {
+    width: 4px;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+}
+
+.stat-indicator.blue { background: var(--primary-blue); }
+.stat-indicator.orange { background: var(--primary-orange); }
+
+/* Urgent Box Special styling */
+.stat-box.urgent .stat-number {
+    color: var(--primary-orange);
+}

@@ -8,6 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
         alert("Navigating to Emergency Request Form...");
         // window.location.href = "request-form.html";
     });
+    function handleChoice(choice) {
+    if (choice === 'request') {
+        // This command tells the browser to change the page
+        window.location.href = "request-help.html";
+    } else if (choice === 'volunteer') {
+        // window.location.href = "volunteer.html";
+    }
+}
 
     volunteerBtn.addEventListener('click', () => {
         // Here you will link to your volunteer dashboard

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueNet | Volunteer Mission Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary-blue: #3498db;
+            --primary-orange: #e67e22;
+            --success-green: #2ecc71;
+            --bg-light: #f4f7f6;
+            --text-dark: #2c3e50;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            /* EXACT SAME BACKGROUND AS PORTAL & REQUEST PAGE */
+            background: linear-gradient(rgba(244, 247, 246, 0.85), rgba(244, 247, 246, 0.85)), 
+                        url('https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&q=80&w=2000');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 15px;
+            border-radius: 20px;
+            transition: 0.3s;
+        }
+
+        .back-btn:hover { background: var(--white); color: var(--primary-orange); }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        /* Glassmorphism Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        /* Left Column: Volunteer Profile/Status */
+        .profile-card { border-top: 6px solid var(--primary-orange); text-align: center; }
+        .vol-avatar { font-size: 4rem; color: var(--primary-orange); margin-bottom: 15px; }
+        .status-badge { 
+            background: #e8f8f5; color: var(--success-green); 
+            padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; 
+        }
+
+        /* Right Column: Active Mission Feed */
+        .mission-card { border-top: 6px solid var(--primary-blue); }
+        .queue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 15px;
+        }
+        .queue-header h2 { margin: 0; font-size: 1.2rem; color: var(--text-dark); }
+
+        /* Mission List Styling (Matching your Command Center image) */
+        .mission-list { display: flex; flex-direction: column; gap: 15px; }
+        
+        .mission-item {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 20px;
+            transition: 0.3s;
+            background: #fff;
+        }
+
+        .mission-item:hover { transform: scale(1.01); border-color: var(--primary-orange); }
+
+        .mission-top { display: flex; justify-content: space-between; align-items: flex-start; }
+        .mission-title { font-weight: 800; font-size: 1.1rem; color: #333; }
+        
+        .priority-tag {
+            font-size: 0.7rem; padding: 3px 10px; border-radius: 5px; text-transform: uppercase; font-weight: 800;
+        }
+        .urgent { background: #fee2e2; color: #ef4444; }
+        .standard { background: #e0f2fe; color: #0369a1; }
+
+        .mission-desc { margin: 12px 0; color: #555; line-height: 1.5; font-size: 0.95rem; }
+
+        .mission-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #95a5a6;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #eee;
+        }
+
+        .accept-btn {
+            background: var(--primary-orange);
+            color: white; border: none; padding: 8px 20px; border-radius: 5px;
+            font-weight: 700; cursor: pointer; transition: 0.3s;
+        }
+        .accept-btn:hover { background: #d35400; }
+
+        @media (max-width: 900px) { .main-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="portal.html" class="back-btn"><i class="fas fa-arrow-left"></i> RETURN TO PORTAL</a>
+
+        <div class="main-layout">
+            
+            <div class="glass-card profile-card">
+                <div class="vol-avatar"><i class="fas fa-user-shield"></i></div>
+                <h2 id="volName">Volunteer Responder</h2>
+                <div class="status-badge"><i class="fas fa-circle"></i> ONLINE & READY</div>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                <p style="font-size: 0.9rem; color: #666;">Total Missions: <strong>12</strong></p>
+                <p style="font-size: 0.9rem; color: #666;">Rank: <strong>Elite Responder</strong></p>
+            </div>
+
+            <div class="glass-card mission-card">
+                <div class="queue-header">
+                    <h2>LIVE MISSION FEED</h2>
+                    <span style="color: #95a5a6; font-size: 0.8rem;">Updated just now</span>
+                </div>
+
+                <div class="mission-list">
+                    <div class="mission-item">
+                        <div class="mission-top">
+                            <span class="mission-title">MEDICAL AID REQUIRED</span>
+                            <span class="priority-tag urgent">Critical</span>
+                        </div>
+                        <p class="mission-desc">Elderly person experiencing difficulty breathing. Requires oxygen support and transport.</p>
+                        <div class="mission-footer">
+                            <span><i class="fas fa-map-marker-alt"></i> Sector 7, Green Park</span>
+                            <button class="accept-btn" onclick="acceptMission(this)">CLAIM MISSION</button>
+                        </div>
+                    </div>
+
+                    <div class="mission-item">
+                        <div class="mission-top">
+                            <span class="mission-title">SUPPLY DELIVERY</span>
+                            <span class="priority-tag standard">Standard</span>
+                        </div>
+                        <p class="mission-desc">Clean water and non-perishable food needed for a family of 4 stranded due to road blockage.</p>
+                        <div class="mission-footer">
+                            <span><i class="fas fa-map-marker-alt"></i> West End Bridge</span>
+                            <button class="accept-btn" onclick="acceptMission(this)">CLAIM MISSION</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function acceptMission(btn) {
+            const missionItem = btn.closest('.mission-item');
+            const title = missionItem.querySelector('.mission-title').innerText;
+            
+            if(confirm(`Are you sure you want to claim the mission: ${title}?`)) {
+                btn.innerText = "MISSION CLAIMED";
+                btn.style.background = "#2ecc71";
+                btn.disabled = true;
+                missionItem.style.opacity = "0.7";
+                alert("Mission coordinates sent to your device. Stay safe!");
+            }
+        }
+    </script>
+</body>
+</html>

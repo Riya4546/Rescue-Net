@@ -28,29 +28,54 @@
     </aside>
 
     <main class="main-content">
+        
+        <div class="stats-container">
+            <div class="stat-box">
+                <div class="stat-info">
+                    <span class="stat-label">Active Cases</span>
+                    <span class="stat-number">06</span>
+                </div>
+                <div class="stat-indicator blue"></div>
+            </div>
+
+            <div class="stat-box urgent">
+                <div class="stat-info">
+                    <span class="stat-label">Urgent</span>
+                    <span class="stat-number">01</span>
+                </div>
+                <div class="stat-indicator orange"></div>
+            </div>
+        </div>
+
         <header class="portal-header">
             <h1>What is your mission today?</h1>
             <p>Your actions save lives. Choose an option to proceed.</p>
         </header>
 
         <section class="selection-grid">
-            <div class="action-card request" id="requestBtn">
-                <div class="icon-container">
-                    <i class="fas fa-bullhorn"></i>
+            
+            <a href="request-help.html" style="text-decoration: none; color: inherit; display: block;">
+                <div class="action-card request" id="requestBtn">
+                    <div class="icon-container">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <h2>Request Help</h2>
+                    <p>In need of urgent assistance? Submit a request for medical aid, food, or rescue teams.</p>
+                    <button class="btn-action">Get Assistance</button>
                 </div>
-                <h2>Request Help</h2>
-                <p>In need of urgent assistance? Submit a request for medical aid, food, or rescue teams.</p>
-                <button class="btn-action">Get Assistance</button>
-            </div>
+            </a>
 
-            <div class="action-card volunteer" id="volunteerBtn">
-                <div class="icon-container">
-                    <i class="fas fa-hand-holding-heart"></i>
+            <a href="volunteer.html" style="text-decoration: none; color: inherit; display: block;">
+                <div class="action-card volunteer" id="volunteerBtn">
+                    <div class="icon-container">
+                        <i class="fas fa-hand-holding-heart"></i>
+                    </div>
+                    <h2>Volunteer</h2>
+                    <p>Ready to help? Sign up for active missions, coordinate supplies, or join a rescue squad.</p>
+                    <button class="btn-action">Join Mission</button>
                 </div>
-                <h2>Volunteer</h2>
-                <p>Ready to help? Sign up for active missions, coordinate supplies, or join a rescue squad.</p>
-                <button class="btn-action">Join Mission</button>
-            </div>
+            </a>
+
         </section>
     </main>
 
