@@ -20,7 +20,7 @@
         
         <nav class="sidebar-nav">
             <a href="#" class="active"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="#"><i class="fas fa-user"></i> Profile Settings</a>
+            <a href="profilepage.html"><i class="fas fa-user"></i> Profile Settings</a>
             <a href="#"><i class="fas fa-bell"></i> Alerts</a>
             <hr class="nav-divider">
             <a href="index.html" class="logout"><i class="fas fa-power-off"></i> Logout</a>
@@ -80,5 +80,13 @@
     </main>
 
     <script src="portal-script.js"></script>
+    <script>
+    supabaseClient.auth.getUser().then(({ data }) => {
+        if (!data.user) {
+            window.location.href = "login.html";
+        }
+    });
+</script>
+
 </body>
 </html>

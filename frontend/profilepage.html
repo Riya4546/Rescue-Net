@@ -1,40 +1,173 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>My Profile</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile | RescueNet</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --sidebar-bg: #2c3e50; --rescue-orange: #e67e22; }
+        
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Inter', sans-serif; }
+
+        /* The Exact Low-Opacity Background from your landing page style */
+        .bg-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), 
+                        url('https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?q=80&w=2070');
+            background-size: cover; z-index: -1;
+        }
+
+        .wrapper { display: flex; height: 100vh; }
+
+        /* Consistent Sidebar from Dashboard */
+        .sidebar { width: 240px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; }
+        .nav-link { padding: 15px 25px; color: #bdc3c7; text-decoration: none; display: flex; align-items: center; gap: 10px; font-size: 14px; }
+        .nav-link.active { background: rgba(255,255,255,0.1); color: white; border-left: 4px solid var(--rescue-orange); }
+
+        /* Main Profile Content */
+        .main { flex: 1; padding: 50px; overflow-y: auto; }
+        
+        .profile-header-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .avatar-large {
+            width: 110px; height: 110px;
+            border-radius: 50%;
+            background: var(--rescue-orange);
+            color: white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 40px; font-weight: 700;
+            border: 5px solid white;
+        }
+
+        .user-details h1 { margin: 0; font-size: 28px; color: #2c3e50; }
+        .location-tag { color: #7f8c8d; margin: 8px 0; font-size: 15px; }
+        .role-badge { 
+            display: inline-block; padding: 4px 12px; border-radius: 20px; 
+            background: #fdf2e9; color: var(--rescue-orange); font-weight: 700; font-size: 12px;
+        }
+
+        /* Recent Works List */
+        .works-section { margin-top: 40px; }
+        .works-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #34495e; }
+        
+        .work-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            border-left: 6px solid var(--rescue-orange);
+        }
+
+        .work-info h3 { margin: 0; font-size: 16px; color: #2c3e50; }
+        .work-info p { margin: 5px 0 0; font-size: 13px; color: #95a5a6; }
+        .work-status { font-weight: 700; color: #27ae60; font-size: 13px; }
+    </style>
 </head>
 <body>
 
-<h2>My Profile</h2>
+<div class="bg-layer"></div>
 
-<p>Email: <span id="email"></span></p>
+<div class="wrapper">
+    <nav class="sidebar">
+        <div style="padding: 40px 25px; text-align: center;">
+            <i class="fas fa-user-circle" style="font-size: 50px; color: var(--rescue-orange);"></i>
+            <p style="margin: 10px 0 0; font-weight: 700;">Welcome Back</p>
+        </div>
+        <a href="portal.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+        <a href="#" class="nav-link active"><i class="fas fa-user-cog"></i> Profile Settings</a>
+        <a href="#" class="nav-link"><i class="fas fa-bell"></i> Alerts</a>
+    </nav>
 
-<button onclick="logout()">Logout</button>
+    <main class="main">
+        <div class="profile-header-card">
+            <div class="avatar-large" id="user-initial">S</div>
+            <div class="user-details">
+                <h1 id="user-name">Sneha Geevargis</h1>
+                <p class="location-tag"><i class="fas fa-map-marker-alt"></i> <span id="user-location">Kochi, Kerala</span></p>
+                <div class="role-badge" id="user-role">Volunteer</div>
+            </div>
+        </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <div class="works-section">
+            <div class="works-title">Recent Works & Contributions</div>
+            <div id="history-list">
+                <div class="work-card">
+                    <div class="work-info">
+                        <h3>Donated food parcels in Kochi during flood</h3>
+                        <p>Feb 10, 2026</p>
+                    </div>
+                    <div class="work-status">Completed</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
 <script>
-  const supabaseClient = supabase.createClient(
-    "https://cmefmcawnugopzrotrem.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI"
-  );
+   async function loadAuthenticatedProfile() {
+    // STEP 1: Get the unique user object from the current session
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
 
-  async function loadProfile() {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-
-    if (!user) {
-      window.location.href = "login.html";
-      return;
+    if (authError || !user) {
+        console.error("No active session found");
+        window.location.href = "login.html"; // Kick them out if not logged in
+        return;
     }
 
-    document.getElementById("email").innerText = user.email;
-  }
+    // STEP 2: Fetch details from member_records using the LOGGED-IN user's email
+    const { data: member, error: memberError } = await supabaseClient
+        .from('member_records')
+        .select('*')
+        .eq('email', user.email) // This is the filter that makes it "Personal"
+        .single();
 
-  async function logout() {
-    await supabaseClient.auth.signOut();
-    window.location.href = "login.html";
-  }
+    if (member) {
+        document.getElementById('user-name').innerText = member.full_name;
+        document.getElementById('user-location').innerText = member.location;
+        document.getElementById('user-role').innerText = member.user_role;
+        document.getElementById('user-initial').innerText = member.full_name.charAt(0);
+    }
 
-  loadProfile();
+    // STEP 3: Fetch history specific to THIS user only
+    const { data: works, error: worksError } = await supabaseClient
+        .from('work_history')
+        .select('*')
+        .eq('user_email', user.email) // Ensures you only see YOUR works
+        .order('created_at', { ascending: false });
+
+    if (works) {
+        const list = document.getElementById('history-list');
+        list.innerHTML = works.map(w => `
+            <div class="work-card">
+                <div class="work-info">
+                    <h3>${w.task_name}</h3>
+                    <p>${new Date(w.created_at).toLocaleDateString()}</p>
+                </div>
+                <div class="work-status">${w.task_status}</div>
+            </div>
+        `).join('');
+    }
+}
+
+// Run this as soon as the page loads
+loadAuthenticatedProfile();
 </script>
 
 </body>
