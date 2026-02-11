@@ -1,3 +1,4 @@
+export const LOCAL_DEV_MODE = true; // set to false when Supabase access is ready
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://cmefmcawnugopzrotrem.supabase.co";

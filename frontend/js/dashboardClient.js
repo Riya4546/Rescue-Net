@@ -1,25 +1,75 @@
-import {
-  createHelpRequest,
-  getMyRequests,
-  getUrgentRequests
-} from "../../backend/dashboard/requests.js";
+// ================================
+// LOCAL DEV DATA STORE (BROWSER SAFE)
+// ================================
+const localRequests = [];
+const localResources = [];
 
-/**
- * Example: submit help request
- */
-export async function submitHelpRequest(formData, userId) {
-  return await createHelpRequest({
-    ...formData,
-    userId
-  });
+// ---------- REQUESTS ----------
+
+export async function submitHelpRequest(data, userId) {
+  const request = {
+    id: crypto.randomUUID(),
+    title: data.title,
+    urgency: data.urgency,
+    location: data.location,
+    description: data.description,
+    status: "open",
+    created_by: userId,
+    created_at: new Date().toISOString()
+  };
+
+  localRequests.push(request);
+  return request;
 }
 
-/**
- * Example: load dashboard data
- */
-export async function loadDashboard(userId) {
-  const myRequests = await getMyRequests(userId);
-  const urgentRequests = await getUrgentRequests();
+export async function getMyRequests(userId) {
+  return localRequests.filter(r => r.created_by === userId);
+}
 
-  return { myRequests, urgentRequests };
+export async function getUrgentRequests() {
+  return localRequests.filter(
+    r =>
+      r.status === "open" &&
+      (r.urgency === "high" || r.urgency === "critical")
+  );
+}
+
+export async function resolveRequest(requestId, userId) {
+  const req = localRequests.find(r => r.id === requestId);
+  if (!req) throw new Error("Request not found");
+  if (req.created_by !== userId) throw new Error("Unauthorized");
+
+  req.status = "resolved";
+  return req;
+}
+
+// ---------- RESOURCES ----------
+
+export async function offerResource(data, userId) {
+  const resource = {
+    id: crypto.randomUUID(),
+    title: data.title,
+    type: data.type,
+    quantity: data.quantity,
+    pickupLocation: data.location,
+    offered_by: userId,
+    created_at: new Date().toISOString()
+  };
+
+  localResources.push(resource);
+  return resource;
+}
+
+export async function getResources() {
+  return localResources;
+}
+
+// ---------- DASHBOARD ----------
+
+export async function loadDashboard(userId) {
+  return {
+    myRequests: await getMyRequests(userId),
+    urgentRequests: await getUrgentRequests(),
+    resources: await getResources()
+  };
 }

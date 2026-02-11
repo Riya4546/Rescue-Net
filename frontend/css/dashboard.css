@@ -1,0 +1,68 @@
+.dashboard {
+  padding: 24px;
+}
+
+.subtitle {
+  color: #6b7280;
+}
+
+.toggle {
+  margin: 20px 0;
+}
+
+.toggle button {
+  padding: 10px 18px;
+  border: none;
+  cursor: pointer;
+  background: #e5e7eb;
+}
+
+.toggle .active {
+  background: var(--blue);
+  color: white;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 24px;
+}
+
+.card {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.form-card input,
+.form-card textarea,
+.form-card select {
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px;
+}
+
+.form-card button {
+  margin-top: 10px;
+  background: var(--orange);
+  color: white;
+  border: none;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.request {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+
+.urgency {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.urgency.high,
+.urgency.critical {
+  color: var(--orange);
+}

@@ -1,0 +1,19 @@
+:root {
+  --blue: #2563eb;
+  --orange: #f97316;
+  --bg: #f9fafb;
+  --card: #ffffff;
+  --text: #111827;
+  --border: #e5e7eb;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
