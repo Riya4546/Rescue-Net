@@ -140,17 +140,45 @@ window.closeModal = () => {
 };
 
 // ==========================================
-// 5. FORM SUBMISSION
+// 5. FORM SUBMISSION (WITH MANDATORY VALIDATION)
 // ==========================================
 
 if (form) {
     form.onsubmit = async (e) => {
         e.preventDefault();
+
+        const category = document.getElementById("reqCategory").value;
+
+        // --- MANDATORY VALIDATION LOCK ---
+        if (category === 'medical') {
+            const medicalType = document.getElementById("medType").value;
+            if (!medicalType) {
+                alert("Please select a Medical Service Type.");
+                return;
+            }
+            if (medicalType === 'assistance' && !document.getElementById("docDept").value) {
+                alert("Please select a Department.");
+                return;
+            }
+            if (medicalType === 'medicine' && (!document.getElementById("medName").value || !document.getElementById("medQty").value)) {
+                alert("Please provide both Medicine Name and Quantity.");
+                return;
+            }
+        } else if (category === 'blood') {
+            const bloodGroup = document.getElementById("bloodGroup").value;
+            const bloodQty = document.getElementById("bloodQty").value;
+            if (!bloodGroup || !bloodQty) {
+                alert("Please select both Blood Group and Quantity required.");
+                return;
+            }
+        }
+
+        // Proceed to Submit if validation passed
         try {
             const input = {
                 title: document.getElementById("reqTitle").value,
                 urgency: document.getElementById("reqUrgency").value,
-                category: document.getElementById("reqCategory").value,
+                category: category,
                 location: document.getElementById("reqLocation").value,
                 description: document.getElementById("reqDescription").value,
                 medicalType: document.getElementById("medType")?.value,
@@ -164,6 +192,8 @@ if (form) {
             await BackendService.createHelpRequest(input);
             alert("Request Submitted!");
             form.reset();
+            // Reset Category UI
+            window.handleCategoryChange("");
             loadDashboard();
         } catch (err) { alert(err.message); }
     };

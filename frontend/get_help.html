@@ -7,51 +7,26 @@
     <link rel="stylesheet" href="css/theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Specific styles for the location search dropdown */
-        #location-suggestions {
-            display: none;
-            position: absolute;
-            width: 100%;
-            background: white;
-            border: 1px solid #ddd;
-            z-index: 1000;
-            list-style: none;
-            padding: 0;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 5px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
-        }
-        #location-suggestions li {
-            padding: 12px;
-            cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-            transition: background 0.2s;
-        }
-        #location-suggestions li:hover {
-            background: #f8f9fa;
-            color: var(--blue);
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-        .btn-icon {
-            background: var(--dark);
-            color: rgb(4, 135, 235);
-            border: none;
-            padding: 0 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: opacity 0.3s;
-        }
-        .btn-icon:hover { opacity: 0.8; }
+        /* Location & UI Helpers */
+        #location-suggestions { display: none; position: absolute; width: 100%; background: white; border: 1px solid #ddd; z-index: 1000; list-style: none; padding: 0; max-height: 200px; overflow-y: auto; margin-top: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-radius: 8px; }
+        #location-suggestions li { padding: 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+        #location-suggestions li:hover { background: #f8f9fa; color: var(--blue); }
+        .btn-icon { background-color: #2c3e50 !important; color: white !important; min-width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 8px; cursor: pointer; border: none; font-size: 1.2rem; }
+        
+        /* FIX: Modal Container (Ensures nothing is cut off) */
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .modal-content { background: white; margin: 5% auto; padding: 30px; border-radius: 16px; width: 90%; max-width: 550px; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 85vh; overflow-y: auto; }
+        .close { position: absolute; right: 20px; top: 15px; font-size: 24px; cursor: pointer; }
+        
+        /* Roadmap Stepper */
+        .roadmap-container { margin-top: 20px; border-left: 3px solid #eee; padding-left: 25px; }
+        .step { position: relative; margin-bottom: 25px; color: #888; }
+        .step.done { color: #2ecc71; font-weight: bold; }
+        .step::before { content: ''; position: absolute; left: -34px; top: 5px; width: 14px; height: 14px; background: #ddd; border: 3px solid white; border-radius: 50%; z-index: 2; }
+        .step.done::before { content: '✓'; background: #2ecc71; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px; }
     </style>
 </head>
 <body>
-
     <nav class="navbar">
         <a href="dashboard.html" class="nav-link" style="margin-left: 0;">&larr; Back to Dashboard</a>
         <div class="brand">Request <span>Assistance</span></div>
@@ -62,23 +37,23 @@
             <form id="helpForm">
                 <div class="form-group">
                     <label>Title of Emergency</label>
-                    <input type="text" id="reqTitle" placeholder="e.g., Flooded House, Medical Help Needed" required>
+                    <input type="text" id="reqTitle" placeholder="e.g., Blood Needed Urgently" required>
                 </div>
 
                 <div class="form-group">
                     <label>Urgency Level</label>
                     <select id="reqUrgency" required>
-                        <option value="low">Low (Can wait)</option>
-                        <option value="medium">Medium (Needed today)</option>
-                        <option value="high">High (Urgent)</option>
-                        <option value="critical">CRITICAL (Life Threatening)</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">CRITICAL</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label>Type of Help</label>
                     <select id="reqCategory" onchange="window.handleCategoryChange(this.value)" required>
-                        <option value="general">General Help</option>
+                        <option value="">Select Category</option>
                         <option value="medical">Medical Services</option>
                         <option value="blood">Blood Services</option>
                         <option value="disaster">Disaster / Rescue</option>
@@ -87,83 +62,89 @@
                     </select>
                 </div>
 
-                <div id="medical-inputs" style="display:none; background: #eff6ff; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--blue);">
-                    <label style="color: var(--blue); font-weight: bold; margin-bottom: 10px; display: block;">Medical Specifics</label>
-                    
-                    <select id="medType" style="margin-bottom: 10px;" onchange="window.handleMedicalType(this.value)">
+                <div id="medical-inputs" style="display:none; background: #eff6ff; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <label style="color: var(--blue); font-weight: bold;">Medical Specifics</label>
+                    <select id="medType" onchange="window.handleMedicalType(this.value)" style="margin-top:10px;">
                         <option value="">Select Service Type</option>
                         <option value="assistance">Doctor / Medical Staff</option>
                         <option value="medicine">Medicine / Pharmacy</option>
                     </select>
-
                     <div id="doctor-fields" style="display:none; margin-top:10px;">
-                        <label style="font-size:0.85em; color:#555;">Required Specialist:</label>
                         <select id="docDept">
                             <option value="">Select Department</option>
                             <option value="General Medicine">General Medicine</option>
                             <option value="Pediatrics">Pediatrics</option>
-                            <option value="Orthopedics">Orthopedics</option>
                             <option value="Cardiology">Cardiology</option>
-                            <option value="Neurology">Neurology</option>
-                            <option value="Emergency/Trauma">Emergency / Trauma</option>
                         </select>
                     </div>
-
                     <div id="medicine-fields" style="display:none; margin-top:10px;">
-                        <input type="text" id="medName" placeholder="Medicine Name" style="margin-bottom: 10px;">
-                        <input type="number" id="medQty" placeholder="Quantity (Max 500)" max="500">
+                        <input type="text" id="medName" placeholder="Medicine Name">
+                        <input type="number" id="medQty" placeholder="Quantity" style="margin-top:10px;">
                     </div>
                 </div>
 
-                <div id="blood-inputs" style="display:none; background: #fef2f2; padding: 20px; border-radius: 10px; margin-bottom: 20px; border-left: 5px solid var(--danger);">
-                    <label style="color: var(--danger); font-weight: bold; margin-bottom: 10px; display: block;">Blood Requirements</label>
-                    <select id="bloodGroup" style="margin-bottom: 10px;">
-                        <option value="">Select Blood Group</option>
-                        <option value="A+">A+</option><option value="A-">A-</option>
-                        <option value="B+">B+</option><option value="B-">B-</option>
-                        <option value="O+">O+</option><option value="O-">O-</option>
-                        <option value="AB+">AB+</option><option value="AB-">AB-</option>
-                    </select>
-                    <input type="number" id="bloodQty" placeholder="Amount (in ml)">
+                <div id="blood-inputs" style="display:none; background: #fff1f2; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                    <label style="color: #be123c; font-weight: bold;">Blood Details</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        <select id="bloodGroup">
+                            <option value="">Blood Group</option>
+                            <option value="A+">A+</option><option value="A-">A-</option>
+                            <option value="B+">B+</option><option value="B-">B-</option>
+                            <option value="O+">O+</option><option value="O-">O-</option>
+                            <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                        </select>
+                        <input type="number" id="bloodQty" placeholder="Units">
+                    </div>
                 </div>
 
-                <div class="form-group" style="position: relative;">
+                <div class="form-group">
                     <label>Location</label>
-                    <div class="input-group">
-                        <input type="text" id="reqLocation" placeholder="Type location or use GPS" autocomplete="off" required>
-                        <button type="button" class="btn-icon" onclick="window.getLocation()" title="Share Current Location">
-                            <i class="fas fa-crosshairs"></i>
-                        </button>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="reqLocation" placeholder="Type or use GPS" autocomplete="off" required style="flex:1;">
+                        <button type="button" class="btn-icon" onclick="window.getLocation()"><i class="fas fa-crosshairs"></i></button>
                     </div>
                     <ul id="location-suggestions"></ul>
                 </div>
 
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea id="reqDescription" rows="3" placeholder="Additional details to help volunteers find you..." required></textarea>
+                    <textarea id="reqDescription" rows="2" required></textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="background-color: var(--orange); width: 100%; padding: 15px; font-size: 1.1rem;">
-                    Submit Request
-                </button>
+                <button type="submit" class="btn btn-primary" style="background-color: var(--orange); width: 100%;">Submit Request</button>
             </form>
         </div>
 
-        <div style="margin-top: 50px; max-width: 900px; margin-left: auto; margin-right: auto;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                <i class="fas fa-clock" style="color: var(--orange);"></i>
-                <h2 style="margin: 0;">Your Live Requests</h2>
+        <div style="margin-top: 50px;">
+            <h2 style="text-align: center; margin-bottom: 30px;">Track Your Requests</h2>
+            <div class="card-grid">
+                <section>
+                    <h3 style="color: var(--danger);">Awaiting Volunteers</h3>
+                    <div id="listQueue"></div>
+                </section>
+                <section>
+                    <h3 style="color: var(--blue);">In Progress</h3>
+                    <div id="listActive"></div>
+                </section>
+                <section>
+                    <h3 style="color: var(--success);">Recently Completed</h3>
+                    <div id="listHistory"></div>
+                </section>
             </div>
+        </div>
+    </div>
 
-            <h3 style="font-size: 1rem; color: var(--gray); border-bottom: 1px solid var(--border); padding-bottom: 10px;">In Progress</h3>
-            <div id="listActive" class="card-grid" style="margin-top: 20px; margin-bottom: 40px;"></div>
-            
-            <h3 style="font-size: 1rem; color: var(--gray); border-bottom: 1px solid var(--border); padding-bottom: 10px;">Awaiting Volunteers</h3>
-            <div id="listQueue" class="card-grid" style="margin-top: 20px;"></div>
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="window.closeModal()">&times;</span>
+            <h2 id="modalTitle">Request Details</h2>
+            <div id="modalDesc" style="color: #666; margin-top: 10px;"></div>
+            <hr>
+            <h4>Live Roadmap</h4>
+            <div id="roadmapContent" class="roadmap-container"></div>
         </div>
     </div>
 
     <script type="module" src="js/dashboardUI.js"></script>
-
 </body>
 </html>
