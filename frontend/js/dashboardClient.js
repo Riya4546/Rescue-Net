@@ -1,31 +1,43 @@
 import { supabase } from "./supabaseClient.js";
 
-/**
- * Fetches all dashboard data in a single parallel burst (O(1) sequential time)
- */
-export async function loadDashboardData(userId) {
-    try {
-        const [myReqs, urgentReqs, resources] = await Promise.all([
-            supabase.from("help_requests").select("*").eq("created_by", userId).order("created_at", { ascending: false }),
-            supabase.from("help_requests").select("*", { count: 'exact', head: true }).in("urgency", ["high", "critical"]).eq("status", "open"),
-            supabase.from("resources").select("*", { count: 'exact', head: true })
+const DEV_USER_ID = "local-dev-user"; 
+
+export const dashboardClient = {
+    async getInitialData() {
+        const [requests, urgent, resources] = await Promise.all([
+            supabase.from('help_requests').select('*').order('created_at', { ascending: false }),
+            supabase.from('help_requests').select('id', { count: 'exact', head: true }).eq('urgency', 'critical').eq('status', 'open'),
+            supabase.from('resources').select('*', { count: 'exact' })
         ]);
 
-        return {
-            myRequests: myReqs.data || [],
-            urgentCount: urgentReqs.count || 0,
+        return { 
+            requests: requests.data || [], 
+            urgentCount: urgent.count || 0,
             resourceCount: resources.count || 0
         };
-    } catch (err) {
-        console.error("Data fetch error:", err);
-        return null;
+    },
+
+    async postRequest(formData) {
+        const { error } = await supabase
+            .from('help_requests')
+            .insert([{ 
+                ...formData, 
+                created_by: DEV_USER_ID,
+                status: 'open' 
+            }]);
+        if (error) throw error;
+    },
+
+    async offerResource(data) {
+        const { error } = await supabase
+            .from('resources')
+            .insert([{
+                title: data.title,
+                type: data.type,
+                quantity: data.quantity,
+                pickup_location: data.location,
+                offered_by: DEV_USER_ID
+            }]);
+        if (error) throw error;
     }
-}
-
-export async function submitHelpRequest(data, userId) {
-    return await supabase.from("help_requests").insert([{ ...data, created_by: userId }]);
-}
-
-export async function resolveRequest(requestId) {
-    return await supabase.from("help_requests").update({ status: "resolved" }).eq("id", requestId);
-}
+};

@@ -1,40 +1,108 @@
-import { loadDashboardData, submitHelpRequest, resolveRequest } from "./dashboardClient.js";
-
-const DEV_USER_ID = "local-dev-user";
+import { dashboardClient } from "./dashboardClient.js";
 
 // DOM Elements
-const listContainer = document.getElementById("requestsList");
-const activeStat = document.getElementById("activeCount");
+const tabNeedHelp = document.getElementById("tabNeedHelp");
+const tabCanHelp = document.getElementById("tabCanHelp");
+const needHelpSection = document.getElementById("needHelpSection");
+const canHelpSection = document.getElementById("canHelpSection");
 
-async function refreshUI() {
-    const data = await loadDashboardData(DEV_USER_ID);
-    if (!data) return;
+const requestsList = document.getElementById("requestsList");
+const activeCount = document.getElementById("activeCount");
+const urgentCount = document.getElementById("urgentCount");
+const resourceCount = document.getElementById("resourceCount");
 
-    // Update Stats
-    activeStat.innerText = data.myRequests.filter(r => r.status === 'open').length;
-    document.getElementById("urgentCount").innerText = data.urgentCount;
-    document.getElementById("resourceCount").innerText = data.resourceCount;
+/* --- TOGGLE LOGIC --- */
+tabNeedHelp.onclick = () => {
+    tabNeedHelp.classList.add("active");
+    tabCanHelp.classList.remove("active");
+    needHelpSection.style.display = "block";
+    canHelpSection.style.display = "none";
+};
 
-    // Render List (O(N) complexity)
-    listContainer.innerHTML = data.myRequests.map(req => `
-        <div class="request-card ${req.status}">
-            <h4>${req.title} <span class="badge ${req.urgency}">${req.urgency}</span></h4>
-            <p>${req.description}</p>
-            ${req.status === 'open' 
-                ? `<button class="resolve-btn" data-id="${req.id}">Mark Resolved</button>` 
-                : '<span class="resolved-tag">Done</span>'}
-        </div>
-    `).join('');
+tabCanHelp.onclick = () => {
+    tabCanHelp.classList.add("active");
+    tabNeedHelp.classList.remove("active");
+    canHelpSection.style.display = "block";
+    needHelpSection.style.display = "none";
+};
+
+/* --- DATA SYNC --- */
+async function refreshDisplay() {
+    try {
+        // Correctly calling the method on the imported object
+        const data = await dashboardClient.getInitialData();
+        
+        activeCount.innerText = data.requests.length;
+        urgentCount.innerText = data.urgentCount;
+        resourceCount.innerText = data.resourceCount;
+
+        if (data.requests.length === 0) {
+            requestsList.innerHTML = "<p>No active requests found.</p>";
+            return;
+        }
+
+        requestsList.innerHTML = data.requests.map(req => `
+            <div class="request-item">
+                <span class="badge ${req.urgency}">${req.urgency}</span>
+                <h4>${req.title}</h4>
+                <p>${req.description || ''}</p>
+                <small>📍 ${req.location}</small>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error("UI Sync Error:", err);
+    }
 }
 
-// Event Delegation (Efficient: 1 listener for N items)
-listContainer.addEventListener('click', async (e) => {
-    if (e.target.classList.contains('resolve-btn')) {
-        const id = e.target.dataset.id;
-        const { error } = await resolveRequest(id);
-        if (!error) refreshUI();
-    }
-});
+/* --- FORM SUBMISSIONS --- */
+document.getElementById("helpForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitRequestBtn");
+    const payload = {
+        title: document.getElementById("reqTitle").value,
+        urgency: document.getElementById("reqUrgency").value,
+        location: document.getElementById("reqLocation").value,
+        description: document.getElementById("reqDescription").value
+    };
 
-// Initialization
-document.addEventListener('DOMContentLoaded', refreshUI);
+    btn.disabled = true;
+    btn.innerText = "Posting...";
+
+    try {
+        await dashboardClient.postRequest(payload);
+        e.target.reset();
+        await refreshDisplay();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Post Request";
+    }
+};
+
+document.getElementById("resourceForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("submitResourceBtn");
+    const payload = {
+        title: document.getElementById("resTitle").value,
+        type: document.getElementById("resType").value,
+        quantity: document.getElementById("resQty").value,
+        location: document.getElementById("resLocation").value
+    };
+
+    btn.disabled = true;
+    btn.innerText = "Registering...";
+
+    try {
+        await dashboardClient.offerResource(payload);
+        e.target.reset();
+        await refreshDisplay();
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Offer Resource";
+    }
+};
+
+document.addEventListener("DOMContentLoaded", refreshDisplay);
