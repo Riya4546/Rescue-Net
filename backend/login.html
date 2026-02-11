@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueNet | Login</title>
+
+    <style>
+        :root {
+            --primary-blue: #2c7ebf;
+            --primary-orange: #e87a41;
+            --bg-light: #f4f7f9;
+            --text-dark: #1a1a1a;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-dark);
+        }
+
+        .login-card {
+            background-color: #ffffff;
+            padding: 50px 40px;
+            border-radius: 4px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .theme-header {
+            text-align: left;
+            margin-bottom: 35px;
+            border-left: 5px solid var(--primary-orange);
+            padding-left: 20px;
+        }
+
+        .theme-header h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1.1;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+            margin: 0;
+            color: var(--text-dark);
+        }
+
+        .theme-header h1 span {
+            color: var(--primary-blue);
+        }
+
+        .tagline {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #888;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            background-color: #fcfcfc;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            background-color: #fff;
+            box-shadow: 0 0 0 3px rgba(44, 126, 191, 0.1);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background-color: #236396;
+            transform: translateY(-1px);
+        }
+
+        .footer-links {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        .footer-links a {
+            color: var(--primary-orange);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+
+        .forgot-password {
+            display: block;
+            text-align: right;
+            font-size: 0.75rem;
+            margin-top: 8px;
+            color: #999;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-card">
+    <div class="theme-header">
+        <span class="tagline">Welcome Back</span>
+        <h1>Login to <span>RescueNet</span></h1>
+    </div>
+
+    <form id="loginForm">
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="Enter your email" required>
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+            <a href="#" class="forgot-password">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="btn-submit">Access Portal</button>
+    </form>
+
+    <div class="footer-links">
+        Don't have an account? <a href="signup.html">Create One Today</a>
+    </div>
+</div>
+
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    const supabaseUrl = "https://cmefmcawnugopzrotrem.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI";
+
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+
+        const { error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (error) {
+            alert(error.message);
+            return;
+        }
+
+        // ✅ LOGIN SUCCESS
+        window.location.href = "dashboard.html";
+    });
+</script>
+
+</body>
+</html>
