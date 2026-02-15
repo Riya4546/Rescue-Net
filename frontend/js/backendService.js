@@ -38,9 +38,7 @@ const ROADMAP_TEMPLATES = {
     // Fallback
     'general': ["Volunteer Assigned", "In Progress", "Resolved", "COMPLETED"]
 };
-
-const SYSTEM_USER = "local-dev-user"; 
-
+const SYSTEM_USER = "local-dev-user";
 export const BackendService = {
 
     // ============================================================
