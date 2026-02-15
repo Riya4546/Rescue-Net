@@ -1,19 +1,108 @@
+/* --- TEAMMATE'S BASE VARIABLES (PRESERVED) --- */
 :root {
-  --blue: #2563eb;
-  --orange: #f97316;
+  --blue: #2563eb;       /* Keeping her Blue */
+  --orange: #f97316;     /* Keeping her Orange */
   --bg: #f9fafb;
   --card: #ffffff;
   --text: #111827;
   --border: #e5e7eb;
+
+  /* --- YOUR ADDITIONS (REQUIRED FOR LOGIC) --- */
+  /* We map our logic names to her colors where possible */
+  --primary: var(--blue);
+  --warning: var(--orange);
+  
+  /* Missing Status Colors (You need these for "Completed" vs "Critical") */
+  --success: #22c55e;    /* Green */
+  --danger: #ef4444;     /* Red */
+  --gray: #64748b;       /* Slate */
 }
 
-* {
-  box-sizing: border-box;
-  font-family: system-ui, sans-serif;
+/* --- GLOBAL RESET (SHARED) --- */
+* { box-sizing: border-box; font-family: system-ui, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+
+/* --- COMPONENT STYLES (ADD THESE BELOW) --- */
+
+/* 1. LAYOUT GRID */
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.card-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+    gap: 20px; 
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
+/* 2. CARDS */
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 8px 12px rgba(0,0,0,0.05); }
+
+/* 3. NAVIGATION (Using her Blue) */
+.navbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.brand { font-weight: 800; font-size: 1.25rem; color: var(--text); text-decoration: none; }
+.brand span { color: var(--orange); } /* Her Orange for accent */
+.nav-link { text-decoration: none; color: var(--gray); font-weight: 600; margin-left: 20px; }
+.nav-link:hover { color: var(--blue); }
+
+/* 4. BADGES (Essential for Backend Logic display) */
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+.badge.critical { background: #fee2e2; color: #991b1b; } /* Red background */
+.badge.high { background: #ffedd5; color: #9a3412; }     /* Orange background */
+.badge.medium { background: #fef9c3; color: #854d0e; }   /* Yellow background */
+.badge.low { background: #dcfce7; color: #166534; }      /* Green background */
+
+/* 5. BUTTONS */
+.btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.btn-primary { background: var(--blue); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+
+.btn-success { background: var(--success); color: white; } /* For "Mark Done" */
+.btn-success:hover { background: #15803d; }
+
+/* 6. FORMS */
+.form-group { margin-bottom: 15px; }
+label { display: block; margin-bottom: 5px; font-weight: 600; }
+input, select, textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+}
+input:focus, select:focus { outline: 2px solid var(--blue); border-color: transparent; }
+
+/* 7. ROADMAP PROGRESS BAR */
+.roadmap-container {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+.roadmap-fill {
+    height: 100%;
+    background: var(--success);
+    transition: width 0.4s ease;
 }

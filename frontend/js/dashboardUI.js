@@ -1,147 +1,208 @@
-import { dashboardClient } from "./dashboardClient.js";
+import { BackendService } from "./backendService.js";
+import { apiService } from "./apiService.js";
 
-// --- DOM ELEMENTS (Matching your new Minimal Design) ---
-const tabNeedHelp = document.getElementById("tabNeedHelp");
-const tabCanHelp = document.getElementById("tabCanHelp");
-const needHelpSection = document.getElementById("needHelpSection");
-const canHelpSection = document.getElementById("canHelpSection");
-
-const viewMyRequests = document.getElementById("viewMyRequests");
-const viewVolunteer = document.getElementById("viewVolunteer");
-
-// The specific lists where data will go
-const listMyActive = document.getElementById("listMyActive");
-const listMyHistory = document.getElementById("listMyHistory");
+// DOM Elements
+const form = document.getElementById("helpForm");
 const listQueue = document.getElementById("listQueue");
-const listHistory = document.getElementById("listHistory");
+const listActive = document.getElementById("listActive");
+const listHistory = document.getElementById("listHistory"); // NEW: History Column
+const locationInput = document.getElementById("reqLocation");
+const suggestionsList = document.getElementById("location-suggestions");
 
-const activeCount = document.getElementById("activeCount");
-const urgentCount = document.getElementById("urgentCount");
+// ==========================================
+// 1. INPUT LOGIC: CATEGORIES & FORMS
+// ==========================================
 
-// Temporary User ID for Dev
-const USER_ID = "local-dev-user"; 
-
-/* --- 1. TOGGLE LOGIC --- */
-tabNeedHelp.onclick = () => {
-    // Buttons
-    tabNeedHelp.classList.add("active");
-    tabCanHelp.classList.remove("active");
+window.handleCategoryChange = (category) => {
+    const medSection = document.getElementById("medical-inputs");
+    const bloodSection = document.getElementById("blood-inputs");
     
-    // Forms
-    needHelpSection.style.display = "block";
-    canHelpSection.style.display = "none";
-
-    // Feed Views
-    viewMyRequests.style.display = "block";
-    viewVolunteer.style.display = "none";
+    if(medSection) medSection.style.display = (category === 'medical') ? 'block' : 'none';
+    if(bloodSection) bloodSection.style.display = (category === 'blood') ? 'block' : 'none';
 };
 
-tabCanHelp.onclick = () => {
-    // Buttons
-    tabCanHelp.classList.add("active");
-    tabNeedHelp.classList.remove("active");
+window.handleMedicalType = (type) => {
+    const docFields = document.getElementById("doctor-fields");
+    const medFields = document.getElementById("medicine-fields");
+    if (!docFields || !medFields) return;
 
-    // Forms
-    canHelpSection.style.display = "block";
-    needHelpSection.style.display = "none";
-
-    // Feed Views
-    viewVolunteer.style.display = "block";
-    viewMyRequests.style.display = "none";
+    docFields.style.display = (type === 'assistance') ? 'block' : 'none';
+    medFields.style.display = (type === 'medicine') ? 'block' : 'none';
 };
 
-/* --- 2. DATA RENDERING --- */
-async function refreshDisplay() {
-    try {
-        console.log("Fetching data..."); // Debug log
-        const data = await dashboardClient.getInitialData();
-        const allRequests = data.requests;
+// ==========================================
+// 2. LOCATION LOGIC: GPS & AUTOCOMPLETE
+// ==========================================
 
-        // FILTER: Split data into "Mine" vs "Others"
-        const myActive = allRequests.filter(r => r.created_by === USER_ID && r.status === 'open');
-        const myHistory = allRequests.filter(r => r.created_by === USER_ID && r.status !== 'open');
-        
-        // Queue: Everything that is Open (for volunteers to see)
-        const queue = allRequests.filter(r => r.status === 'open'); 
-        const history = allRequests.filter(r => r.status === 'resolved');
-
-        // UPDATE STATS
-        activeCount.innerText = queue.length;
-        urgentCount.innerText = data.urgentCount;
-
-        // RENDER LISTS
-        renderList(listMyActive, myActive, "You have no active requests.");
-        renderList(listMyHistory, myHistory, "No past history.");
-        renderList(listQueue, queue, "All clear! No pending requests.");
-        renderList(listHistory, history, "No community history yet.");
-
-    } catch (err) {
-        console.error("Connection Error:", err);
-        alert("Lost connection to Backend. Check console.");
-    }
-}
-
-// Helper to draw the clean Minimal cards
-function renderList(container, items, emptyMsg) {
-    if (!container) return; // Safety check
-    
-    if (items.length === 0) {
-        container.innerHTML = `<div style="padding: 20px; text-align: center; color: #aaa; font-size: 0.9rem;">${emptyMsg}</div>`;
+window.getLocation = () => {
+    if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
         return;
     }
-    
-    container.innerHTML = items.map(req => `
-        <div class="request-item">
-            <div class="item-top">
-                <span class="item-title">${req.title}</span>
-                <span class="badge ${req.urgency}">${req.urgency}</span>
-            </div>
-            <div class="item-desc">${req.description || 'No details provided.'}</div>
-            <div class="item-meta">
-                <span>📍 ${req.location}</span>
-                <span>•</span>
-                <span>${new Date(req.created_at).toLocaleDateString()}</span>
-            </div>
-        </div>
-    `).join('');
+    locationInput.value = "Locating you...";
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const address = await apiService.getAddressFromCoords(pos.coords.latitude, pos.coords.longitude);
+            locationInput.value = address;
+        } catch (err) { locationInput.value = ""; alert("Could not fetch address."); }
+    }, () => {
+        alert("Permission denied.");
+        locationInput.value = "";
+    });
+};
+
+if (locationInput) {
+    locationInput.addEventListener("input", async (e) => {
+        const query = e.target.value;
+        if (query.length < 3) { suggestionsList.style.display = 'none'; return; }
+        
+        const results = await apiService.searchLocation(query);
+        suggestionsList.innerHTML = results.map(place => `
+            <li onclick="window.selectLocation('${place.display_name.replace(/'/g, "\\'")}')">
+                <i class="fas fa-map-marker-alt"></i> ${place.display_name}
+            </li>
+        `).join('');
+        suggestionsList.style.display = results.length ? 'block' : 'none';
+    });
 }
 
-/* --- 3. FORM SUBMISSIONS --- */
-document.getElementById("helpForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById("submitRequestBtn");
-    btn.disabled = true; btn.innerText = "Broadcasting...";
-
-    try {
-        await dashboardClient.postRequest({
-            title: document.getElementById("reqTitle").value,
-            urgency: document.getElementById("reqUrgency").value,
-            location: document.getElementById("reqLocation").value,
-            description: document.getElementById("reqDescription").value
-        });
-        e.target.reset();
-        await refreshDisplay();
-    } catch (err) { alert(err.message); } 
-    finally { btn.disabled = false; btn.innerText = "Broadcast Request"; }
+window.selectLocation = (address) => {
+    locationInput.value = address;
+    suggestionsList.style.display = 'none';
 };
 
-document.getElementById("resourceForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById("submitResourceBtn");
-    btn.disabled = true; btn.innerText = "Registering...";
+// ==========================================
+// 3. DATA & RENDERING: ROADMAPS & LISTS
+// ==========================================
 
+async function loadDashboard() {
     try {
-        await dashboardClient.offerResource({
-            title: document.getElementById("resTitle").value,
-            type: document.getElementById("resType").value,
-            quantity: document.getElementById("resQty").value,
-            location: document.getElementById("resLocation").value
-        });
-        e.target.reset();
-        await refreshDisplay();
-    } catch (err) { alert(err.message); } 
-    finally { btn.disabled = false; btn.innerText = "Register Resource"; }
+        const data = await BackendService.getInitialData();
+        
+        // Render 3 Columns
+        renderList(listQueue, data.requests.filter(r => r.status === 'queued'));
+        renderList(listActive, data.requests.filter(r => r.status === 'on_progress'));
+        renderList(listHistory, data.requests.filter(r => r.status === 'completed'));
+    } catch (err) { console.error("Load Error:", err); }
+}
+
+function renderList(container, items) {
+    if (!container) return;
+    container.innerHTML = items.length ? items.map(r => `
+        <div class="card" onclick='window.openRoadmap(${JSON.stringify(r)})' style="cursor:pointer; border-left: 4px solid ${getStatusColor(r.status)}; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>${r.title}</strong> 
+                <span class="badge ${r.urgency}">${r.urgency}</span>
+            </div>
+            <div style="font-size:0.85em; color:#666; margin-top:5px;">📍 ${r.location_text}</div>
+            ${renderSpecifics(r)}
+        </div>
+    `).join('') : '<p style="color:#bbb; text-align:center; padding:10px;">No requests.</p>';
+}
+
+function getStatusColor(status) {
+    if (status === 'queued') return '#e74c3c';
+    if (status === 'on_progress') return '#3498db';
+    return '#2ecc71';
+}
+
+function renderSpecifics(req) {
+    const details = req.specific_details;
+    if (!details) return '';
+    if (details.department) return `<div style="font-size:0.8em; color:var(--blue);">🩺 ${details.department}</div>`;
+    if (details.group) return `<div style="font-size:0.8em; color:var(--danger);">🩸 Group: ${details.group}</div>`;
+    return '';
+}
+
+// ==========================================
+// 4. MODAL & ROADMAP LOGIC
+// ==========================================
+
+window.openRoadmap = (req) => {
+    document.getElementById("modalTitle").innerText = req.title;
+    document.getElementById("modalDesc").innerText = req.description;
+    
+    // Build Stepper UI
+    const roadmap = req.roadmap || [{ stage: "Request Created", completed: true, timestamp: req.created_at }];
+    const roadmapHtml = roadmap.map(step => `
+        <div class="step ${step.completed ? 'done' : ''}">
+            <div class="step-label">${step.stage}</div>
+            <div class="step-time">${step.timestamp ? new Date(step.timestamp).toLocaleTimeString() : 'Awaiting...'}</div>
+        </div>
+    `).join('');
+
+    document.getElementById("roadmapContent").innerHTML = roadmapHtml;
+    document.getElementById("detailsModal").style.display = "block";
 };
+
+window.closeModal = () => {
+    document.getElementById("detailsModal").style.display = "none";
+};
+
+// ==========================================
+// 5. FORM SUBMISSION (WITH MANDATORY VALIDATION)
+// ==========================================
+
+if (form) {
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+
+        const category = document.getElementById("reqCategory").value;
+
+        // --- MANDATORY VALIDATION LOCK ---
+        if (category === 'medical') {
+            const medicalType = document.getElementById("medType").value;
+            if (!medicalType) {
+                alert("Please select a Medical Service Type.");
+                return;
+            }
+            if (medicalType === 'assistance' && !document.getElementById("docDept").value) {
+                alert("Please select a Department.");
+                return;
+            }
+            if (medicalType === 'medicine' && (!document.getElementById("medName").value || !document.getElementById("medQty").value)) {
+                alert("Please provide both Medicine Name and Quantity.");
+                return;
+            }
+        } else if (category === 'blood') {
+            const bloodGroup = document.getElementById("bloodGroup").value;
+            const bloodQty = document.getElementById("bloodQty").value;
+            if (!bloodGroup || !bloodQty) {
+                alert("Please select both Blood Group and Quantity required.");
+                return;
+            }
+        }
+
+        // Proceed to Submit if validation passed
+        try {
+            const input = {
+                title: document.getElementById("reqTitle").value,
+                urgency: document.getElementById("reqUrgency").value,
+                category: category,
+                location: document.getElementById("reqLocation").value,
+                description: document.getElementById("reqDescription").value,
+                medicalType: document.getElementById("medType")?.value,
+                docDept: document.getElementById("docDept")?.value,
+                medicineName: document.getElementById("medName")?.value,
+                medicineQty: document.getElementById("medQty")?.value,
+                bloodGroup: document.getElementById("bloodGroup")?.value,
+                bloodQty: document.getElementById("bloodQty")?.value
+            };
+
+            await BackendService.createHelpRequest(input);
+            alert("Request Submitted!");
+            form.reset();
+            // Reset Category UI
+            window.handleCategoryChange("");
+            loadDashboard();
+        } catch (err) { alert(err.message); }
+    };
+}
 
 // Initialize
-document.addEventListener("DOMContentLoaded", refreshDisplay);
+document.addEventListener("DOMContentLoaded", loadDashboard);
+// Close modal on outside click
+window.onclick = (event) => {
+    const modal = document.getElementById("detailsModal");
+    if (event.target == modal) closeModal();
+};
