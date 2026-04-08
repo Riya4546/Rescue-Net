@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RescueNet | Command Center</title>
+    <link rel="stylesheet" href="css/theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap');
+
+        :root {
+            --ops-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+            --ops-fast: 170ms;
+            --ops-mid: 260ms;
+        }
+
+        body.ops-page {
+            font-family: "Manrope", "Trebuchet MS", sans-serif;
+            line-height: 1.45;
+            background:
+                radial-gradient(circle at 12% 14%, rgba(31, 116, 201, 0.16), transparent 35%),
+                radial-gradient(circle at 85% 80%, rgba(222, 123, 30, 0.12), transparent 30%),
+                linear-gradient(145deg, #edf4fa, #f4f7fa);
+        }
+
+        body.ops-page .sidebar {
+            background: linear-gradient(164deg, #213245 0%, #172635 100%);
+            border-right: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 14px 0 34px rgba(15, 24, 34, 0.2);
+        }
+
+        body.ops-page .main-content {
+            padding: 24px 26px;
+        }
+
+        body.ops-page .btn-back {
+            border: 1px solid rgba(26, 48, 74, 0.12);
+            box-shadow: 0 8px 24px rgba(31, 55, 82, 0.08);
+            transition: transform var(--ops-fast) var(--ops-ease), box-shadow var(--ops-fast) var(--ops-ease);
+        }
+
+        body.ops-page .btn-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(31, 55, 82, 0.14);
+        }
+
+        .command-header {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .kpi {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.65);
+            border-radius: 12px;
+            box-shadow: 0 10px 24px rgba(26, 46, 67, 0.1);
+            padding: 14px;
+        }
+
+        .kpi-value {
+            margin: 0;
+            font-size: 1.3rem;
+            color: #1f374f;
+            font-weight: 800;
+            line-height: 1.15;
+        }
+
+        .kpi-label {
+            margin-top: 6px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+            color: #698094;
+        }
+
+        .kpi.role .kpi-value {
+            font-size: 1rem;
+            color: #2f6ba0;
+        }
+
+        .split-view.command-layout {
+            grid-template-columns: minmax(280px, 340px) 1fr;
+            align-items: start;
+            min-height: auto;
+            gap: 20px;
+        }
+
+        body.ops-page .card-panel {
+            background: rgba(255, 255, 255, 0.86);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: 18px;
+            box-shadow: 0 20px 36px rgba(20, 41, 62, 0.12);
+            backdrop-filter: blur(7px);
+            padding: 22px;
+        }
+
+        body.ops-page .card-panel.orange-top {
+            border-top: 5px solid #de7b1e;
+        }
+
+        body.ops-page .card-panel.blue-top {
+            border-top: 5px solid #338ddf;
+        }
+
+        .notice {
+            margin-bottom: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            background: #eef5fb;
+            border: 1px solid #c9def1;
+            color: #2a4a66;
+        }
+
+        .notice.warn {
+            background: #fff5ea;
+            border-color: #f3d2a8;
+            color: #874f09;
+        }
+
+        .responder-item {
+            background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(245, 250, 255, 0.94));
+            border: 1px solid #d6e3ef;
+            border-left: 4px solid #2f8bda;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .responder-name {
+            margin: 0;
+            font-size: 0.92rem;
+            color: #1f374f;
+            font-weight: 800;
+        }
+
+        .responder-meta {
+            font-size: 0.77rem;
+            color: #60788f;
+            margin-top: 4px;
+        }
+
+        .status-pill {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.68rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            font-weight: 800;
+        }
+
+        .status-pill.available {
+            background: #d7f5e6;
+            color: #1d7c4b;
+        }
+
+        .status-pill.engaged {
+            background: #ffe6d4;
+            color: #9a4f0f;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            background: #ebf2f8;
+            border: 1px solid #d9e5f0;
+            border-radius: 12px;
+            padding: 6px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 10px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            font-weight: 700;
+            color: #6f8397;
+            cursor: pointer;
+            transition: all var(--ops-mid) var(--ops-ease);
+        }
+
+        .tab-btn:hover {
+            color: #23415f;
+            background: rgba(255, 255, 255, 0.55);
+        }
+
+        .tab-btn.active {
+            color: #163552;
+            background: #fff;
+            box-shadow: 0 8px 18px rgba(31, 63, 96, 0.16);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.28s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .case-card {
+            border: 1px solid #d5e2ee;
+            border-left: 5px solid #2f8bda;
+            border-radius: 12px;
+            background: linear-gradient(140deg, rgba(255, 255, 255, 0.98), rgba(245, 250, 255, 0.94));
+            box-shadow: 0 10px 24px rgba(26, 46, 67, 0.1);
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .case-card.queue {
+            border-left-color: #d95f4e;
+        }
+
+        .case-card.active {
+            border-left-color: #2f8bda;
+        }
+
+        .case-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .case-title {
+            margin: 0;
+            font-size: 1rem;
+            color: #1f374f;
+            font-weight: 800;
+        }
+
+        .case-sub {
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: #5f768c;
+        }
+
+        .badge {
+            border-radius: 999px;
+            padding: 4px 8px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .badge-critical {
+            background: #fde0dd;
+            color: #b33d30;
+        }
+
+        .badge-high {
+            background: #fff0d9;
+            color: #925008;
+        }
+
+        .badge-low {
+            background: #e9eef3;
+            color: #6e7f90;
+        }
+
+        .sla-row {
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: #5e7387;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .sla-overdue {
+            color: #b83d2f;
+            font-weight: 800;
+        }
+
+        .dispatch-row {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .dispatch-row select {
+            flex: 1;
+            min-width: 190px;
+            border: 1px solid #cedde9;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 0.83rem;
+            background: #fff;
+        }
+
+        .dispatch-row button {
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            background: linear-gradient(92deg, #2f8bda, #4da1ea);
+            color: #fff;
+        }
+
+        .dispatch-row button.handover {
+            background: linear-gradient(92deg, #d66e1a, #eb9440);
+        }
+
+        .dispatch-row button:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 1180px) {
+            .command-header {
+                grid-template-columns: repeat(3, minmax(130px, 1fr));
+            }
+
+            .split-view.command-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .command-header {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="css/ops-unified.css">
+    <link rel="stylesheet" href="css/dashboard-shell.css">
+</head>
+<body class="ops-page command-page">
+<template id="legacy-page-template">
+
+    <aside class="sidebar">
+        <div class="profile-section">
+            <div class="profile-icon">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <h3>Command Desk</h3>
+            <p>Dispatch Operations</p>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="portal.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="get_help.html" class="nav-link"><i class="fas fa-bullhorn"></i> Request Help</a>
+            <a href="volunteer.html" class="nav-link"><i class="fas fa-hand-holding-heart"></i> Volunteer</a>
+            <a href="command_center.html" class="nav-link active"><i class="fas fa-broadcast-tower"></i> Command Center</a>
+            <a href="profilepage.html" class="nav-link"><i class="fas fa-user"></i> Profile Settings</a>
+            <a href="get_help.html" class="nav-link"><i class="fas fa-bell"></i> Alerts</a>
+            <hr class="nav-divider">
+            <a href="index.html" class="nav-link logout"><i class="fas fa-power-off"></i> Logout</a>
+        </nav>
+    </aside>
+
+    <div class="main-content ops-main">
+        <a href="portal.html" class="btn-back"><i class="fas fa-arrow-left"></i> Return to Portal</a>
+
+        <section class="command-header" aria-label="Command center quick metrics">
+            <article class="kpi"><p class="kpi-value" id="kpi-queue">0</p><div class="kpi-label">Unassigned Queue</div></article>
+            <article class="kpi"><p class="kpi-value" id="kpi-active">0</p><div class="kpi-label">Active Missions</div></article>
+            <article class="kpi"><p class="kpi-value" id="kpi-critical">0</p><div class="kpi-label">Critical Queue</div></article>
+            <article class="kpi"><p class="kpi-value" id="kpi-overdue">0</p><div class="kpi-label">SLA Overdue</div></article>
+            <article class="kpi role"><p class="kpi-value" id="kpi-role">Unknown</p><div class="kpi-label">Your Role</div></article>
+        </section>
+
+        <div class="split-view command-layout">
+            <section class="card-panel orange-top">
+                <h2 style="margin-top:0;">Responder Directory</h2>
+                <div id="dispatchNotice" class="notice">Loading role access...</div>
+                <div id="responderList">Loading responders...</div>
+            </section>
+
+            <section class="card-panel blue-top">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="window.switchCommandTab('queue', event)">Queue</button>
+                    <button class="tab-btn" onclick="window.switchCommandTab('active', event)">In Progress</button>
+                    <button class="tab-btn" onclick="window.switchCommandTab('history', event)">History</button>
+                </div>
+
+                <div id="view-queue" class="tab-content active">
+                    <div id="queueList">Loading queue...</div>
+                </div>
+                <div id="view-active" class="tab-content">
+                    <div id="activeList">Loading active cases...</div>
+                </div>
+                <div id="view-history" class="tab-content">
+                    <div id="historyList">Loading history...</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script type="module" src="js/commandCenterUI.js"></script>
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
+</body>
+</html>

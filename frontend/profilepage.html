@@ -59,6 +59,38 @@
             background: #fdf2e9; color: var(--rescue-orange); font-weight: 700; font-size: 12px;
         }
 
+        .stats-grid {
+            margin-top: 24px;
+            display: grid;
+            grid-template-columns: repeat(5, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            border-radius: 12px;
+            padding: 16px 14px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+        }
+
+        .stat-value {
+            margin: 0;
+            font-size: 1.45rem;
+            color: #2c3e50;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+        }
+
         /* Recent Works List */
         .works-section { margin-top: 40px; }
         .works-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; color: #34495e; }
@@ -78,9 +110,33 @@
         .work-info h3 { margin: 0; font-size: 16px; color: #2c3e50; }
         .work-info p { margin: 5px 0 0; font-size: 13px; color: #95a5a6; }
         .work-status { font-weight: 700; color: #27ae60; font-size: 13px; }
+
+        @media (max-width: 1100px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, minmax(140px, 1fr));
+            }
+        }
+
+        @media (max-width: 760px) {
+            .main {
+                padding: 22px 16px;
+            }
+
+            .profile-header-card {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 24px 18px;
+                gap: 18px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
+            }
+        }
     </style>
 </head>
 <body>
+<template id="legacy-page-template">
 
 <div class="bg-layer"></div>
 
@@ -91,8 +147,11 @@
             <p style="margin: 10px 0 0; font-weight: 700;">Welcome Back</p>
         </div>
         <a href="portal.html" class="nav-link"><i class="fas fa-th-large"></i> Dashboard</a>
-        <a href="#" class="nav-link active"><i class="fas fa-user-cog"></i> Profile Settings</a>
-        <a href="#" class="nav-link"><i class="fas fa-bell"></i> Alerts</a>
+        <a href="get_help.html" class="nav-link"><i class="fas fa-bullhorn"></i> Request Help</a>
+        <a href="volunteer.html" class="nav-link"><i class="fas fa-hand-holding-heart"></i> Volunteer</a>
+        <a href="command_center.html" class="nav-link"><i class="fas fa-broadcast-tower"></i> Command Center</a>
+        <a href="profilepage.html" class="nav-link active"><i class="fas fa-user-cog"></i> Profile Settings</a>
+        <a href="get_help.html" class="nav-link"><i class="fas fa-bell"></i> Alerts</a>
     </nav>
 
     <main class="main">
@@ -105,8 +164,31 @@
             </div>
         </div>
 
+        <section class="stats-grid" aria-label="Member progress summary">
+            <article class="stat-card">
+                <p class="stat-value" id="stat-requested">0</p>
+                <div class="stat-label">Helps Requested</div>
+            </article>
+            <article class="stat-card">
+                <p class="stat-value" id="stat-requested-resolved">0</p>
+                <div class="stat-label">Requested Resolved</div>
+            </article>
+            <article class="stat-card">
+                <p class="stat-value" id="stat-requested-active">0</p>
+                <div class="stat-label">Requested Active</div>
+            </article>
+            <article class="stat-card">
+                <p class="stat-value" id="stat-volunteered">0</p>
+                <div class="stat-label">Missions Volunteered</div>
+            </article>
+            <article class="stat-card">
+                <p class="stat-value" id="stat-volunteered-resolved">0</p>
+                <div class="stat-label">Missions Completed</div>
+            </article>
+        </section>
+
         <div class="works-section">
-            <div class="works-title">Recent Works & Contributions</div>
+            <div class="works-title">Profile History & Contributions</div>
             <div id="history-list">
                 <div class="work-card">
                     <div class="work-info">
@@ -120,55 +202,380 @@
     </main>
 </div>
 
-<script>
-   async function loadAuthenticatedProfile() {
-    // STEP 1: Get the unique user object from the current session
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+<script type="module">
+import { supabase } from "./js/supabaseClient.js";
 
-    if (authError || !user) {
-        console.error("No active session found");
-        window.location.href = "login.html"; // Kick them out if not logged in
+function normalizeIdentity(value) {
+    return String(value || "").trim().toLowerCase();
+}
+
+function uniqueNormalized(values) {
+    return Array.from(new Set((Array.isArray(values) ? values : []).map(normalizeIdentity).filter(Boolean)));
+}
+
+function identityInAliases(value, aliases) {
+    const target = normalizeIdentity(value);
+    if (!target) return false;
+    return uniqueNormalized(aliases).includes(target);
+}
+
+function getParticipants(specificDetails) {
+    const safe = specificDetails && typeof specificDetails === "object" ? specificDetails : {};
+    const participants = safe.participants;
+    return participants && typeof participants === "object" ? participants : {};
+}
+
+function isRequesterForAliases(row, aliases) {
+    const participants = getParticipants(row?.specific_details);
+    return [row?.created_by, participants.requester_id, participants.requester_email]
+        .some((value) => identityInAliases(value, aliases));
+}
+
+function isVolunteerForAliases(row, aliases) {
+    const participants = getParticipants(row?.specific_details);
+    return [row?.assigned_volunteer, participants.volunteer_id, participants.volunteer_email]
+        .some((value) => identityInAliases(value, aliases));
+}
+
+function applyAliasFilter(queryBuilder, column, aliases) {
+    const cleanAliases = uniqueNormalized(aliases);
+    if (!cleanAliases.length) {
+        return queryBuilder.eq(column, "__none__");
+    }
+    if (cleanAliases.length === 1) {
+        return queryBuilder.eq(column, cleanAliases[0]);
+    }
+    const expression = cleanAliases.map((value) => `${column}.eq.${value}`).join(",");
+    return queryBuilder.or(expression);
+}
+
+function mergeRowsById(groups) {
+    const merged = new Map();
+    (Array.isArray(groups) ? groups : []).forEach((group) => {
+        (Array.isArray(group) ? group : []).forEach((row) => {
+            const key = String(row?.id || "");
+            if (!key) return;
+            if (!merged.has(key)) merged.set(key, row);
+        });
+    });
+    return Array.from(merged.values());
+}
+
+function countStatus(rows, status) {
+    return rows.filter((row) => String(row?.status || "") === status).length;
+}
+
+function computeMetrics(rows, aliases) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const requesterRows = safeRows.filter((row) => isRequesterForAliases(row, aliases));
+    const volunteerRows = safeRows.filter((row) => isVolunteerForAliases(row, aliases));
+
+    return {
+        requestedTotal: requesterRows.length,
+        requestedActive: requesterRows.filter((row) => ["queued", "on_progress"].includes(String(row?.status || ""))).length,
+        requestedResolved: countStatus(requesterRows, "completed"),
+        volunteeredTotal: volunteerRows.length,
+        volunteeredActive: countStatus(volunteerRows, "on_progress"),
+        volunteeredResolved: countStatus(volunteerRows, "completed")
+    };
+}
+
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function formatStatus(value) {
+    const status = String(value || "").toLowerCase();
+    if (status === "on_progress") return "On Progress";
+    if (status === "completed") return "Completed";
+    if (status === "cancelled") return "Cancelled";
+    if (status === "queued") return "Queued";
+    return status ? status.replace(/_/g, " ") : "Updated";
+}
+
+function getLatestActivityDate(row) {
+    const roadmap = Array.isArray(row?.roadmap) ? row.roadmap : [];
+    const latestRoadmap = roadmap.reduce((latest, step) => {
+        const ms = new Date(step?.timestamp || 0).getTime();
+        if (!Number.isFinite(ms)) return latest;
+        return Math.max(latest, ms);
+    }, 0);
+    const created = new Date(row?.created_at || 0).getTime();
+    const finalMs = Math.max(created || 0, latestRoadmap || 0);
+    return Number.isFinite(finalMs) && finalMs > 0 ? new Date(finalMs).toISOString() : null;
+}
+
+function renderHistoryList(list, worksRows = [], requestRows = [], aliases = []) {
+    if (Array.isArray(worksRows) && worksRows.length) {
+        list.innerHTML = worksRows.map((w) => `
+            <div class="work-card">
+                <div class="work-info">
+                    <h3>${escapeHtml(w.task_name || "Activity")}</h3>
+                    <p>${w.created_at ? new Date(w.created_at).toLocaleString() : "Date unavailable"}</p>
+                </div>
+                <div class="work-status">${escapeHtml(w.task_status || "Updated")}</div>
+            </div>
+        `).join("");
         return;
     }
 
-    // STEP 2: Fetch details from member_records using the LOGGED-IN user's email
-    const { data: member, error: memberError } = await supabaseClient
-        .from('member_records')
-        .select('*')
-        .eq('email', user.email) // This is the filter that makes it "Personal"
-        .single();
+    const derivedRows = (Array.isArray(requestRows) ? requestRows : [])
+        .map((row) => {
+            const isVolunteer = isVolunteerForAliases(row, aliases);
+            const roleLabel = isVolunteer ? "Volunteer Mission" : "Help Request";
+            return {
+                title: `${roleLabel}: ${row?.title || row?.category || row?.id || "Untitled"}`,
+                status: formatStatus(row?.status),
+                created_at: getLatestActivityDate(row) || row?.created_at || null
+            };
+        })
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-    if (member) {
-        document.getElementById('user-name').innerText = member.full_name;
-        document.getElementById('user-location').innerText = member.location;
-        document.getElementById('user-role').innerText = member.user_role;
-        document.getElementById('user-initial').innerText = member.full_name.charAt(0);
-    }
-
-    // STEP 3: Fetch history specific to THIS user only
-    const { data: works, error: worksError } = await supabaseClient
-        .from('work_history')
-        .select('*')
-        .eq('user_email', user.email) // Ensures you only see YOUR works
-        .order('created_at', { ascending: false });
-
-    if (works) {
-        const list = document.getElementById('history-list');
-        list.innerHTML = works.map(w => `
+    if (!derivedRows.length) {
+        list.innerHTML = `
             <div class="work-card">
                 <div class="work-info">
-                    <h3>${w.task_name}</h3>
-                    <p>${new Date(w.created_at).toLocaleDateString()}</p>
+                    <h3>No history yet</h3>
+                    <p>Your requester/volunteer activities will appear here.</p>
                 </div>
-                <div class="work-status">${w.task_status}</div>
+                <div class="work-status">Pending</div>
             </div>
-        `).join('');
+        `;
+        return;
+    }
+
+    list.innerHTML = derivedRows.map((item) => `
+        <div class="work-card">
+            <div class="work-info">
+                <h3>${escapeHtml(item.title)}</h3>
+                <p>${item.created_at ? new Date(item.created_at).toLocaleString() : "Date unavailable"}</p>
+            </div>
+            <div class="work-status">${escapeHtml(item.status)}</div>
+        </div>
+    `).join("");
+}
+
+function setMetric(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = Number.isFinite(Number(value)) ? String(value) : "0";
+}
+
+async function persistMemberProgress(email, user, displayName, location, role, metrics, hasExistingMember) {
+    const normalizedEmail = normalizeIdentity(email);
+    if (!normalizedEmail) return;
+
+    const fullPayload = {
+        profile_id: normalizeIdentity(user?.id || ""),
+        email: normalizedEmail,
+        full_name: displayName,
+        location: location || null,
+        user_role: role || "Volunteer",
+        requested_total: metrics.requestedTotal,
+        requested_active: metrics.requestedActive,
+        requested_resolved: metrics.requestedResolved,
+        volunteered_total: metrics.volunteeredTotal,
+        volunteered_active: metrics.volunteeredActive,
+        volunteered_resolved: metrics.volunteeredResolved,
+        total_cases: metrics.requestedTotal + metrics.volunteeredTotal,
+        active_cases: metrics.requestedActive + metrics.volunteeredActive,
+        resolved_cases: metrics.requestedResolved + metrics.volunteeredResolved,
+        last_activity_at: new Date().toISOString()
+    };
+
+    const hasColumnError = (error) => {
+        const msg = String(error?.message || "").toLowerCase();
+        return msg.includes("column") && msg.includes("does not exist");
+    };
+
+    const updateCandidates = [
+        fullPayload,
+        {
+            full_name: displayName,
+            location: location || null,
+            user_role: role || "Volunteer",
+            requested_total: metrics.requestedTotal,
+            requested_active: metrics.requestedActive,
+            requested_resolved: metrics.requestedResolved,
+            volunteered_total: metrics.volunteeredTotal,
+            volunteered_active: metrics.volunteeredActive,
+            volunteered_resolved: metrics.volunteeredResolved,
+            total_cases: metrics.requestedTotal + metrics.volunteeredTotal,
+            active_cases: metrics.requestedActive + metrics.volunteeredActive,
+            resolved_cases: metrics.requestedResolved + metrics.volunteeredResolved
+        },
+        {
+            full_name: displayName,
+            location: location || null,
+            user_role: role || "Volunteer",
+            requested_total: metrics.requestedTotal,
+            requested_active: metrics.requestedActive,
+            requested_resolved: metrics.requestedResolved,
+            volunteered_total: metrics.volunteeredTotal,
+            volunteered_active: metrics.volunteeredActive,
+            volunteered_resolved: metrics.volunteeredResolved
+        },
+        { full_name: displayName, location: location || null, user_role: role || "Volunteer" },
+        { full_name: displayName }
+    ];
+
+    const insertCandidates = [
+        fullPayload,
+        {
+            id: normalizeIdentity(user?.id || "") || undefined,
+            email: normalizedEmail,
+            full_name: displayName,
+            location: location || null,
+            user_role: role || "Volunteer",
+            requested_total: metrics.requestedTotal,
+            requested_active: metrics.requestedActive,
+            requested_resolved: metrics.requestedResolved,
+            volunteered_total: metrics.volunteeredTotal,
+            volunteered_active: metrics.volunteeredActive,
+            volunteered_resolved: metrics.volunteeredResolved
+        },
+        {
+            email: normalizedEmail,
+            full_name: displayName,
+            location: location || null,
+            user_role: role || "Volunteer"
+        },
+        {
+            email: normalizedEmail,
+            full_name: displayName
+        }
+    ];
+
+    if (hasExistingMember) {
+        for (const payload of updateCandidates) {
+            const result = await supabase.from("member_records").update(payload).eq("email", normalizedEmail);
+            if (!result.error) return;
+            if (!hasColumnError(result.error)) return;
+        }
+        return;
+    }
+
+    for (const payload of insertCandidates) {
+        const cleanPayload = { ...payload };
+        if (!cleanPayload.id) delete cleanPayload.id;
+        const result = await supabase.from("member_records").insert([cleanPayload]);
+        if (!result.error) return;
+        if (!hasColumnError(result.error)) return;
     }
 }
 
-// Run this as soon as the page loads
+async function loadAuthenticatedProfile() {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    const email = normalizeIdentity(user.email || "");
+    const userId = normalizeIdentity(user.id || "");
+    const aliases = uniqueNormalized([userId, email]);
+    const fallbackName = (user.user_metadata?.full_name || email.split("@")[0] || "Member")
+        .replace(/[._-]+/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    let displayName = fallbackName;
+    let displayLocation = "Not set";
+    let displayRole = "Volunteer";
+
+    const profileResult = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", email)
+        .limit(1);
+    const profile = Array.isArray(profileResult?.data) && profileResult.data[0] ? profileResult.data[0] : null;
+
+    if (profile) {
+        displayName = profile.full_name || displayName;
+        displayLocation = profile.location || displayLocation;
+        displayRole = profile.user_role || displayRole;
+    }
+
+    const memberResult = await supabase
+        .from("member_records")
+        .select("*")
+        .eq("email", email)
+        .limit(1);
+    const member = Array.isArray(memberResult?.data) && memberResult.data[0] ? memberResult.data[0] : null;
+    if (member) {
+        displayName = member.full_name || displayName;
+        displayLocation = member.location || displayLocation;
+        displayRole = member.user_role || displayRole;
+    }
+
+    document.getElementById("user-name").innerText = displayName;
+    document.getElementById("user-initial").innerText = displayName.charAt(0) || "M";
+    document.getElementById("user-location").innerText = displayLocation;
+    document.getElementById("user-role").innerText = displayRole;
+
+    const requesterQuery = applyAliasFilter(
+        supabase.from("help_requests").select("*"),
+        "created_by",
+        aliases
+    );
+    const volunteerQuery = applyAliasFilter(
+        supabase.from("help_requests").select("*"),
+        "assigned_volunteer",
+        aliases
+    );
+
+    const [requesterResult, volunteerResult] = await Promise.all([requesterQuery, volunteerQuery]);
+    const requestRows = mergeRowsById([requesterResult?.data, volunteerResult?.data])
+        .filter((row) => isRequesterForAliases(row, aliases) || isVolunteerForAliases(row, aliases));
+    const computed = computeMetrics(requestRows, aliases);
+    const hasLiveCaseRows = requestRows.length > 0;
+    const pickMetric = (memberValue, computedValue) => {
+        const memberNum = Number(memberValue);
+        const computedNum = Number(computedValue);
+        if (hasLiveCaseRows && Number.isFinite(computedNum)) return Math.max(0, computedNum);
+        if (Number.isFinite(memberNum)) return Math.max(0, memberNum);
+        if (Number.isFinite(computedNum)) return Math.max(0, computedNum);
+        return 0;
+    };
+
+    const metrics = {
+        requestedTotal: pickMetric(member?.requested_total, computed.requestedTotal),
+        requestedActive: pickMetric(member?.requested_active, computed.requestedActive),
+        requestedResolved: pickMetric(member?.requested_resolved, computed.requestedResolved),
+        volunteeredTotal: pickMetric(member?.volunteered_total, computed.volunteeredTotal),
+        volunteeredActive: pickMetric(member?.volunteered_active, computed.volunteeredActive),
+        volunteeredResolved: pickMetric(member?.volunteered_resolved, computed.volunteeredResolved)
+    };
+
+    setMetric("stat-requested", metrics.requestedTotal);
+    setMetric("stat-requested-active", metrics.requestedActive);
+    setMetric("stat-requested-resolved", metrics.requestedResolved);
+    setMetric("stat-volunteered", metrics.volunteeredTotal);
+    setMetric("stat-volunteered-resolved", metrics.volunteeredResolved);
+
+    await persistMemberProgress(email, user, displayName, displayLocation, displayRole, computed, Boolean(member));
+
+    const worksResult = await supabase
+        .from("work_history")
+        .select("*")
+        .eq("user_email", email)
+        .order("created_at", { ascending: false });
+    const works = Array.isArray(worksResult?.data) ? worksResult.data : [];
+    renderHistoryList(document.getElementById("history-list"), works, requestRows, aliases);
+}
+
 loadAuthenticatedProfile();
 </script>
 
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
 </body>
 </html>

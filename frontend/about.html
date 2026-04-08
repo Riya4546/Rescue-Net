@@ -164,6 +164,7 @@
     </style>
 </head>
 <body>
+<template id="legacy-page-template">
 
 <div class="container">
     <header class="header-section">
@@ -255,5 +256,11 @@
     </div>
 </div>
 
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
 </body>
 </html>

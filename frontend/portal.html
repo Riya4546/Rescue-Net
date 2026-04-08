@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RescueNet | Portal</title>
-    <link rel="stylesheet" href="portal-style.css">
+    <link rel="stylesheet" href="css/portal-style.css">
+    <link rel="stylesheet" href="css/dashboard-shell.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="portal-body">
+<template id="legacy-page-template">
 
     <aside class="sidebar">
         <div class="profile-section">
@@ -19,11 +21,14 @@
         </div>
         
         <nav class="sidebar-nav">
-            <a href="#" class="active"><i class="fas fa-th-large"></i> Dashboard</a>
-            <a href="profilepage.html"><i class="fas fa-user"></i> Profile Settings</a>
-            <a href="#"><i class="fas fa-bell"></i> Alerts</a>
+            <a href="portal.html" class="nav-link active"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="get_help.html" class="nav-link"><i class="fas fa-bullhorn"></i> Request Help</a>
+            <a href="volunteer.html" class="nav-link"><i class="fas fa-hand-holding-heart"></i> Volunteer</a>
+            <a href="command_center.html" class="nav-link"><i class="fas fa-broadcast-tower"></i> Command Center</a>
+            <a href="profilepage.html" class="nav-link"><i class="fas fa-user"></i> Profile Settings</a>
+            <a href="get_help.html" class="nav-link"><i class="fas fa-bell"></i> Alerts</a>
             <hr class="nav-divider">
-            <a href="index.html" class="logout"><i class="fas fa-power-off"></i> Logout</a>
+            <a href="index.html" class="nav-link logout" id="logoutLink"><i class="fas fa-power-off"></i> Logout</a>
         </nav>
     </aside>
 
@@ -33,7 +38,7 @@
             <div class="stat-box">
                 <div class="stat-info">
                     <span class="stat-label">Active Cases</span>
-                    <span class="stat-number">06</span>
+                    <span class="stat-number" id="activeCasesStat">--</span>
                 </div>
                 <div class="stat-indicator blue"></div>
             </div>
@@ -41,7 +46,7 @@
             <div class="stat-box urgent">
                 <div class="stat-info">
                     <span class="stat-label">Urgent</span>
-                    <span class="stat-number">01</span>
+                    <span class="stat-number" id="urgentCasesStat">--</span>
                 </div>
                 <div class="stat-indicator orange"></div>
             </div>
@@ -54,39 +59,96 @@
 
         <section class="selection-grid">
             
-            <a href="request-help.html" style="text-decoration: none; color: inherit; display: block;">
-                <div class="action-card request" id="requestBtn">
-                    <div class="icon-container">
-                        <i class="fas fa-bullhorn"></i>
-                    </div>
-                    <h2>Request Help</h2>
-                    <p>In need of urgent assistance? Submit a request for medical aid, food, or rescue teams.</p>
-                    <button class="btn-action">Get Assistance</button>
+            <a href="get_help.html" class="action-card action-card-link request" id="requestBtn" aria-label="Request help">
+                <div class="icon-container">
+                    <i class="fas fa-bullhorn"></i>
                 </div>
+                <h2>Request Help</h2>
+                <p>In need of urgent assistance? Submit a request for medical aid, food, or rescue teams.</p>
+                <span class="btn-action" aria-hidden="true">Get Assistance</span>
             </a>
 
-            <a href="volunteer.html" style="text-decoration: none; color: inherit; display: block;">
-                <div class="action-card volunteer" id="volunteerBtn">
-                    <div class="icon-container">
-                        <i class="fas fa-hand-holding-heart"></i>
-                    </div>
-                    <h2>Volunteer</h2>
-                    <p>Ready to help? Sign up for active missions, coordinate supplies, or join a rescue squad.</p>
-                    <button class="btn-action">Join Mission</button>
+            <a href="volunteer.html" class="action-card action-card-link volunteer" id="volunteerBtn" aria-label="Volunteer">
+                <div class="icon-container">
+                    <i class="fas fa-hand-holding-heart"></i>
                 </div>
+                <h2>Volunteer</h2>
+                <p>Ready to help? Sign up for active missions, coordinate supplies, or join a rescue squad.</p>
+                <span class="btn-action" aria-hidden="true">Join Mission</span>
             </a>
 
         </section>
     </main>
 
-    <script src="portal-script.js"></script>
-    <script>
-    supabaseClient.auth.getUser().then(({ data }) => {
-        if (!data.user) {
+    <script type="module">
+    import { supabase, disableOfflineMode, isOfflineModeEnabled } from "./js/supabaseClient.js";
+    import { BackendService } from "./js/backendService.js";
+
+    function formatStatCount(value) {
+        const count = Number(value);
+        if (!Number.isFinite(count) || count < 0) return "--";
+        return String(Math.trunc(count)).padStart(2, "0");
+    }
+
+    function renderStats({ activeCount = null, urgentCount = null } = {}) {
+        const activeEl = document.getElementById("activeCasesStat");
+        const urgentEl = document.getElementById("urgentCasesStat");
+        if (activeEl) activeEl.textContent = formatStatCount(activeCount);
+        if (urgentEl) urgentEl.textContent = formatStatCount(urgentCount);
+    }
+
+    async function loadPortalStats() {
+        try {
+            const data = await BackendService.getInitialData();
+            const requests = Array.isArray(data?.requests) ? data.requests : [];
+            const activeCount = requests.filter((item) => !["completed", "cancelled"].includes(item?.status)).length;
+            const urgentCount = requests.filter((item) => item?.status === "queued" && ["high", "critical"].includes(item?.urgency)).length;
+            renderStats({ activeCount, urgentCount });
+        } catch (error) {
+            console.error("Failed to load portal stats:", error);
+            renderStats({ activeCount: 0, urgentCount: 0 });
+        }
+    }
+
+    (async () => {
+        const logoutLink = document.getElementById("logoutLink");
+        if (logoutLink) {
+            logoutLink.addEventListener("click", async (event) => {
+                event.preventDefault();
+                try {
+                    if (isOfflineModeEnabled()) {
+                        disableOfflineMode();
+                        window.location.href = "index.html";
+                        return;
+                    }
+                    await supabase.auth.signOut();
+                } catch (error) {
+                    console.error("Logout failed:", error);
+                } finally {
+                    window.location.href = "index.html";
+                }
+            });
+        }
+
+        try {
+            const { data } = await supabase.auth.getUser();
+            if (!data?.user) {
+                window.location.href = "login.html";
+                return;
+            }
+            await loadPortalStats();
+        } catch (error) {
+            console.error("Auth bootstrap failed:", error);
             window.location.href = "login.html";
         }
-    });
-</script>
+    })();
+    </script>
 
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
 </body>
 </html>

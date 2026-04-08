@@ -143,6 +143,7 @@
 </head>
 
 <body>
+<template id="legacy-page-template">
 
 <div class="login-card">
     <div class="theme-header">
@@ -160,7 +161,7 @@
         <div class="form-group">
             <label>Password</label>
             <input type="password" id="password" placeholder="••••••••" required>
-            <a href="#" class="forgot-password">Forgot Password?</a>
+            <a href="#" class="forgot-password" id="forgotPasswordLink">Forgot Password?</a>
         </div>
 
         <button type="submit" class="btn-submit">Access Portal</button>
@@ -171,35 +172,54 @@
     </div>
 </div>
 
-<!-- SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module">
+    import { supabase } from "./js/supabaseClient.js";
 
-<script>
-    const supabaseUrl = "https://cmefmcawnugopzrotrem.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI";
+    const form = document.getElementById("loginForm");
+    const submitBtn = form.querySelector('button[type="submit"]');
 
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-
-    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const email = document.getElementById("email").value;
+        const email = document.getElementById("email").value.trim().toLowerCase();
         const password = document.getElementById("password").value;
 
-        const { error } = await supabaseClient.auth.signInWithPassword({
-            email,
-            password
-        });
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Signing in...";
 
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
-            alert(error.message);
+            alert(error.message || "Login failed.");
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Access Portal";
             return;
         }
 
-        // ✅ LOGIN SUCCESS
         window.location.href = "portal.html";
+    });
+
+    document.getElementById("forgotPasswordLink").addEventListener("click", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        if (!email) {
+            alert("Enter your email first, then click Forgot Password.");
+            return;
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) {
+            alert(error.message || "Password reset is not available.");
+            return;
+        }
+        alert("If enabled, a reset email has been sent.");
     });
 </script>
 
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
 </body>
 </html>

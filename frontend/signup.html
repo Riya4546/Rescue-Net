@@ -134,6 +134,7 @@
 </head>
 
 <body>
+<template id="legacy-page-template">
 
   <div class="signup-container">
 
@@ -148,7 +149,10 @@
       <input type="email" id="email" placeholder="you@example.com" required />
 
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Minimum 6 characters" required />
+      <input type="password" id="password" placeholder="Minimum 6 characters" minlength="6" required />
+
+      <label for="confirmPassword">Confirm Password</label>
+      <input type="password" id="confirmPassword" placeholder="Re-enter your password" minlength="6" required />
 
       <button id="submitBtn" type="submit">Create Account</button>
 
@@ -161,18 +165,11 @@
 
   </div>
 
-  <!-- SUPABASE -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <script>
-    const supabaseUrl = "https://cmefmcawnugopzrotrem.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI";
-
-    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+  <script type="module">
+    import { supabase } from "./js/supabaseClient.js";
 
     const form = document.getElementById("signupForm");
     const btn = document.getElementById("submitBtn");
-
     let loading = false;
 
     form.addEventListener("submit", async (e) => {
@@ -183,22 +180,25 @@
       btn.disabled = true;
       btn.innerText = "Creating account...";
 
-      const email = document.getElementById("email").value;
+      const email = document.getElementById("email").value.trim().toLowerCase();
       const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
 
-      const { error } = await supabaseClient.auth.signUp({
-        email,
-        password
-      });
-
-      if (error) {
-        alert(error.message);
+      if (password !== confirmPassword) {
+        alert("Passwords do not match.");
         reset();
         return;
       }
 
-      alert("Signup successful 🎉");
-      reset();
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        alert(error.message || "Signup failed.");
+        reset();
+        return;
+      }
+
+      alert("Signup successful.");
+      window.location.href = "portal.html";
     });
 
     function reset() {
@@ -208,5 +208,11 @@
     }
   </script>
 
+</template>
+<div id="react-root"></div>
+<script src="js/reactLegacyMount.global.js"></script>
+<script>
+  window.mountLegacyPage();
+</script>
 </body>
 </html>
