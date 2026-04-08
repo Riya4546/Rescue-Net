@@ -498,7 +498,14 @@ function buildSessionFromMember(member) {
 
 function isMissingColumnError(error) {
     const msg = String(error?.message || "").toLowerCase();
-    return msg.includes("column") && msg.includes("does not exist");
+    const details = String(error?.details || "").toLowerCase();
+    const hint = String(error?.hint || "").toLowerCase();
+    const combined = `${msg} ${details} ${hint}`;
+
+    return (
+        (combined.includes("column") && combined.includes("does not exist"))
+        || (combined.includes("could not find") && combined.includes("column") && combined.includes("schema cache"))
+    );
 }
 
 function isMissingRelationError(error, relationName) {
@@ -705,8 +712,6 @@ async function insertMemberRecord(client, email, passwordHash, profile = {}) {
     const nowIso = new Date().toISOString();
 
     const profileInsertCandidates = [
-        { ...payloadBase, password_hash: passwordHash, auth_provider: "local", last_login_at: nowIso },
-        { ...payloadBase, password: passwordHash, auth_provider: "local", last_login_at: nowIso },
         { ...payloadBase, password_hash: passwordHash, last_login_at: nowIso },
         { ...payloadBase, password: passwordHash, last_login_at: nowIso },
         { ...payloadBase, password_hash: passwordHash },

@@ -37,7 +37,6 @@ async function signUp() {
     user_role: "Volunteer",
     location: country || null,
     password_hash,
-    auth_provider: "legacy_form",
     last_login_at: new Date().toISOString()
   };
 
