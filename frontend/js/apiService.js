@@ -1,3 +1,7 @@
+import { buildServiceUrl, getServiceConfig } from "./appConfig.js";
+
+const serviceConfig = getServiceConfig();
+
 export const apiService = {
 
     // 1. AUTO-COMPLETE (Search by Name)
@@ -6,7 +10,7 @@ export const apiService = {
         
         try {
             // Using OpenStreetMap (Nominatim) - FREE
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+            const url = buildServiceUrl(serviceConfig.geocodingSearchUrl, { query });
             const response = await fetch(url, { signal: options.signal });
             if (response.ok) {
                 const data = await response.json();
@@ -19,7 +23,7 @@ export const apiService = {
             }
 
             // Fallback provider: Photon (no API key)
-            const fallbackUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=8`;
+            const fallbackUrl = buildServiceUrl(serviceConfig.geocodingSearchFallbackUrl, { query });
             const fallbackResponse = await fetch(fallbackUrl, { signal: options.signal });
             if (!fallbackResponse.ok) return [];
             const fallbackData = await fallbackResponse.json();
@@ -73,9 +77,9 @@ export const apiService = {
             names.add(name);
         };
 
-        const rxUrl = `https://rxnav.nlm.nih.gov/REST/drugs.json?name=${encodeURIComponent(q)}`;
+        const rxUrl = buildServiceUrl(serviceConfig.medicineLookupUrl, { query: q });
         const fdaSearch = `openfda.brand_name:${q}* OR openfda.generic_name:${q}*`;
-        const fdaUrl = `https://api.fda.gov/drug/label.json?search=${encodeURIComponent(fdaSearch)}&limit=25`;
+        const fdaUrl = buildServiceUrl(serviceConfig.medicineLabelUrl, { search: fdaSearch });
 
         const [rxResult, fdaResult] = await Promise.allSettled([
             fetch(rxUrl, { signal: options.signal }).then((r) => r.json()),
@@ -156,7 +160,7 @@ export const apiService = {
 
         try {
             // NIH ClinicalTables NPI dataset: [total, ids, extras, rows]
-            const url = `https://clinicaltables.nlm.nih.gov/api/npi_idv/v3/search?terms=${encodeURIComponent(q)}&maxList=40`;
+            const url = buildServiceUrl(serviceConfig.specialistLookupUrl, { query: q });
             const response = await fetch(url, { signal: options.signal });
             const data = await response.json();
 
@@ -193,7 +197,7 @@ export const apiService = {
     // This is needed for the "Current Location" button
     async getAddressFromCoords(lat, lon) {
         try {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+            const url = buildServiceUrl(serviceConfig.geocodingReverseUrl, { lat, lon });
             const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
@@ -201,7 +205,7 @@ export const apiService = {
             }
 
             // Fallback provider: Photon reverse
-            const fallbackUrl = `https://photon.komoot.io/reverse?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}`;
+            const fallbackUrl = buildServiceUrl(serviceConfig.geocodingReverseFallbackUrl, { lat, lon });
             const fallbackResponse = await fetch(fallbackUrl);
             if (!fallbackResponse.ok) return "Unknown Location";
             const fallbackData = await fallbackResponse.json();

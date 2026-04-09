@@ -40,6 +40,15 @@ const ROADMAP_TEMPLATES = {
 };
 const SYSTEM_USER = "local-dev-user";
 const DEFAULT_CHECKIN_INTERVAL_MIN = 15;
+const MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS = 3;
+const HELP_REQUEST_OPTIONAL_COLUMNS = new Map([
+    ["created_by", null],
+    ["assigned_volunteer", null],
+    ["requester_profile_id", null],
+    ["requester_email", null],
+    ["assigned_volunteer_profile_id", null],
+    ["assigned_volunteer_email", null]
+]);
 const LIVE_STATUS_LABELS = {
     contacting: "Contacting requester",
     en_route: "En route",
@@ -116,7 +125,13 @@ function deriveDisplayName(identityValue) {
 
 function hasMissingColumnError(error) {
     const msg = String(error?.message || "").toLowerCase();
-    return msg.includes("column") && msg.includes("does not exist");
+    const details = String(error?.details || "").toLowerCase();
+    const hint = String(error?.hint || "").toLowerCase();
+    const combined = `${msg} ${details} ${hint}`;
+    return (
+        (combined.includes("column") && combined.includes("does not exist"))
+        || (combined.includes("could not find") && combined.includes("column") && combined.includes("schema cache"))
+    );
 }
 
 function hasMissingRelationError(error, relationName = "") {
@@ -127,19 +142,93 @@ function hasMissingRelationError(error, relationName = "") {
         && (!relation || msg.includes(relation));
 }
 
+function extractMissingColumnName(error) {
+    const combined = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
+    const schemaCacheMatch = combined.match(/could not find the ['"]([^'"]+)['"] column/i);
+    if (schemaCacheMatch?.[1]) {
+        return normalizeIdentity(schemaCacheMatch[1]);
+    }
+
+    const directMatch = combined.match(/column\s+["']?([a-zA-Z0-9_.]+)["']?\s+does not exist/i);
+    if (directMatch?.[1]) {
+        return normalizeIdentity(directMatch[1].split(".").pop());
+    }
+
+    return "";
+}
+
+function getMissingHelpRequestOptionalColumn(error) {
+    const missingColumn = extractMissingColumnName(error);
+    return HELP_REQUEST_OPTIONAL_COLUMNS.has(missingColumn) ? missingColumn : "";
+}
+
+function markHelpRequestOptionalColumnSupport(columnName, supported) {
+    if (!HELP_REQUEST_OPTIONAL_COLUMNS.has(columnName)) return;
+    HELP_REQUEST_OPTIONAL_COLUMNS.set(columnName, Boolean(supported));
+}
+
+function pruneUnsupportedHelpRequestPayload(payload = {}) {
+    const cleanPayload = { ...(payload || {}) };
+    HELP_REQUEST_OPTIONAL_COLUMNS.forEach((isSupported, columnName) => {
+        if (isSupported === false) {
+            delete cleanPayload[columnName];
+        }
+    });
+    return cleanPayload;
+}
+
+async function runHelpRequestWrite(buildAttempt, payload = {}) {
+    let nextPayload = pruneUnsupportedHelpRequestPayload(payload);
+    const strippedColumns = new Set();
+
+    while (true) {
+        const result = await buildAttempt(nextPayload);
+        if (!result?.error) {
+            Object.keys(nextPayload).forEach((columnName) => {
+                if (HELP_REQUEST_OPTIONAL_COLUMNS.has(columnName)) {
+                    markHelpRequestOptionalColumnSupport(columnName, true);
+                }
+            });
+            return result;
+        }
+
+        const missingColumn = getMissingHelpRequestOptionalColumn(result.error);
+        if (
+            missingColumn
+            && Object.prototype.hasOwnProperty.call(nextPayload, missingColumn)
+            && !strippedColumns.has(missingColumn)
+        ) {
+            markHelpRequestOptionalColumnSupport(missingColumn, false);
+            delete nextPayload[missingColumn];
+            strippedColumns.add(missingColumn);
+            continue;
+        }
+
+        return result;
+    }
+}
+
 function getRequesterContext(requestLike) {
     const participants = getParticipantsStore(requestLike?.specific_details);
     const requesterIdentity = normalizeIdentity(
-        requestLike?.created_by || participants.requester_id || participants.requester_email
+        requestLike?.requester_profile_id
+        || requestLike?.requester_email
+        || requestLike?.created_by
+        || participants.requester_id
+        || participants.requester_email
     );
     const requesterEmail = normalizeIdentity(
-        participants.requester_email
-        || (String(participants.requester_id || "").includes("@") ? participants.requester_id : null)
+        requestLike?.requester_email
+        || participants.requester_email
+        || (String(requestLike?.requester_profile_id || "").includes("@") ? requestLike.requester_profile_id : null)
         || (String(requestLike?.created_by || "").includes("@") ? requestLike.created_by : null)
+        || (String(participants.requester_id || "").includes("@") ? participants.requester_id : null)
     );
-    const requesterAuthId = String(participants.requester_id || "").includes("@")
-        ? null
-        : normalizeIdentity(participants.requester_id);
+    const requesterAuthId = uniqueNormalized([
+        String(requestLike?.requester_profile_id || "").includes("@") ? null : requestLike?.requester_profile_id,
+        String(participants.requester_id || "").includes("@") ? null : participants.requester_id,
+        String(requestLike?.created_by || "").includes("@") ? null : requestLike?.created_by
+    ])[0] || null;
     const requesterName = String(participants.requester_name || "").trim()
         || deriveDisplayName(requesterEmail || requesterIdentity);
 
@@ -177,6 +266,75 @@ function applyIdentityFilter(queryBuilder, column, aliases) {
     return queryBuilder.or(expression);
 }
 
+function getVolunteerCandidates(request) {
+    const participants = getParticipantsStore(request?.specific_details);
+    return [
+        request?.assigned_volunteer_profile_id,
+        request?.assigned_volunteer_email,
+        request?.assigned_volunteer,
+        participants.volunteer_id,
+        participants.volunteer_email
+    ];
+}
+
+function getRequesterCandidates(request) {
+    const participants = getParticipantsStore(request?.specific_details);
+    return [
+        request?.requester_profile_id,
+        request?.requester_email,
+        request?.created_by,
+        participants.requester_id,
+        participants.requester_email
+    ];
+}
+
+function getAssignedVolunteerIdentity(request) {
+    return uniqueNormalized(getVolunteerCandidates(request))[0] || "";
+}
+
+function requestHasAssignedVolunteer(request) {
+    return Boolean(getAssignedVolunteerIdentity(request));
+}
+
+function getVolunteerCapacityState(activeMissionCount) {
+    const count = Number(activeMissionCount) || 0;
+    if (count >= MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS) {
+        return "at_capacity";
+    }
+    if (count > 0) {
+        return "engaged";
+    }
+    return "available";
+}
+
+async function loadActiveVolunteerAssignments(aliases, { excludeRequestId = null } = {}) {
+    const result = await supabase
+        .from("help_requests")
+        .select("*")
+        .eq("status", "on_progress");
+    throwIfQueryFailed("Loading responder assignment capacity", result);
+    return ensureArray(result.data).filter((row) => {
+        if (excludeRequestId && String(row?.id || "") === String(excludeRequestId)) {
+            return false;
+        }
+        return isVolunteerForActor(row, { aliases });
+    });
+}
+
+function assertVolunteerHasCapacity(activeMissionCount) {
+    if (Number(activeMissionCount) >= MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS) {
+        throw new Error(`You can only work on ${MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS} active missions at the same time.`);
+    }
+}
+
+function requesterMatchesResponder(requesterContext, responderLike) {
+    return [
+        requesterContext?.requesterIdentity,
+        requesterContext?.requesterEmail,
+        requesterContext?.requesterAuthId
+    ].some((value) => actorOwnsIdentity(value, responderLike));
+}
+
 function ensureArray(value) {
     return Array.isArray(value) ? value : [];
 }
@@ -202,6 +360,144 @@ function mergeParticipantsIntoSpecificDetails(specificDetails, patch) {
     };
 }
 
+async function ensureProfileRecord(userLike, existingProfile = null, memberRecord = null) {
+    const email = normalizeIdentity(userLike?.email || existingProfile?.email || memberRecord?.email || "");
+    const authId = normalizeIdentity(userLike?.id || userLike?.authId || existingProfile?.id || "");
+    if (!email) return existingProfile;
+
+    const fullName = String(
+        userLike?.full_name
+        || userLike?.fullName
+        || existingProfile?.full_name
+        || memberRecord?.full_name
+        || deriveDisplayName(email)
+    ).trim() || deriveDisplayName(email);
+    const userRole = String(
+        userLike?.user_role
+        || userLike?.role
+        || existingProfile?.user_role
+        || memberRecord?.user_role
+        || "Volunteer"
+    ).trim() || "Volunteer";
+    const location = userLike?.location ?? existingProfile?.location ?? memberRecord?.location ?? null;
+    const nowIso = getNowIso();
+
+    if (existingProfile) {
+        const updateCandidates = [
+            {
+                full_name: fullName,
+                user_role: userRole,
+                location,
+                last_login_at: nowIso,
+                updated_at: nowIso
+            },
+            {
+                full_name: fullName,
+                user_role: userRole,
+                location,
+                last_login_at: nowIso
+            },
+            {
+                full_name: fullName,
+                user_role: userRole,
+                location
+            },
+            {
+                email,
+                full_name: fullName
+            },
+            {
+                email
+            }
+        ];
+
+        for (const payload of updateCandidates) {
+            const result = await supabase.from("profiles").update(payload).eq("email", email);
+            if (!result?.error) {
+                return {
+                    ...existingProfile,
+                    id: existingProfile.id || authId || null,
+                    email,
+                    full_name: fullName,
+                    user_role: userRole,
+                    location
+                };
+            }
+            if (!hasMissingColumnError(result.error)) {
+                return existingProfile;
+            }
+        }
+
+        return existingProfile;
+    }
+
+    const insertCandidates = [
+        {
+            id: authId || undefined,
+            email,
+            full_name: fullName,
+            user_role: userRole,
+            location,
+            last_login_at: nowIso,
+            created_at: nowIso,
+            updated_at: nowIso
+        },
+        {
+            id: authId || undefined,
+            email,
+            full_name: fullName,
+            user_role: userRole,
+            location
+        },
+        {
+            id: authId || undefined,
+            email,
+            full_name: fullName
+        },
+        {
+            id: authId || undefined,
+            email
+        },
+        {
+            email,
+            full_name: fullName
+        },
+        {
+            email
+        }
+    ];
+
+    for (const payload of insertCandidates) {
+        const cleanPayload = { ...payload };
+        if (!cleanPayload.id) delete cleanPayload.id;
+        const result = await supabase.from("profiles").insert([cleanPayload]).select("*").limit(1);
+        if (!result?.error) {
+            const row = Array.isArray(result.data) && result.data.length ? result.data[0] : cleanPayload;
+            return {
+                id: row?.id || authId || null,
+                email,
+                full_name: row?.full_name || fullName,
+                user_role: row?.user_role || userRole,
+                location: row?.location ?? location
+            };
+        }
+        if (String(result.error?.code || "") === "23505") {
+            return {
+                id: authId || null,
+                email,
+                full_name: fullName,
+                user_role: userRole,
+                location
+            };
+        }
+        if (!hasMissingColumnError(result.error)) {
+            return null;
+        }
+    }
+
+    return null;
+}
+
 async function getCurrentActorProfile() {
     const { data, error } = await supabase.auth.getUser();
     if (error) {
@@ -225,7 +521,7 @@ async function getCurrentActorProfile() {
     if (email) {
         const profileByEmail = await supabase
             .from("profiles")
-            .select("id, email, full_name, user_role, location")
+            .select("*")
             .eq("email", email);
         if (!profileByEmail?.error && Array.isArray(profileByEmail?.data) && profileByEmail.data[0]) {
             profileRecord = profileByEmail.data[0];
@@ -233,7 +529,7 @@ async function getCurrentActorProfile() {
 
         const memberByEmail = await supabase
             .from("member_records")
-            .select("id, profile_id, email, full_name, user_role, location")
+            .select("*")
             .eq("email", email);
         if (!memberByEmail?.error && Array.isArray(memberByEmail?.data) && memberByEmail.data[0]) {
             memberRecord = memberByEmail.data[0];
@@ -243,7 +539,7 @@ async function getCurrentActorProfile() {
     if (!profileRecord && authId) {
         const profileById = await supabase
             .from("profiles")
-            .select("id, email, full_name, user_role, location")
+            .select("*")
             .eq("id", authId);
         if (!profileById?.error && Array.isArray(profileById?.data) && profileById.data[0]) {
             profileRecord = profileById.data[0];
@@ -253,7 +549,7 @@ async function getCurrentActorProfile() {
     if (!memberRecord && authId) {
         const profileById = await supabase
             .from("member_records")
-            .select("id, profile_id, email, full_name, user_role, location")
+            .select("*")
             .eq("id", authId);
         if (!profileById?.error && Array.isArray(profileById?.data) && profileById.data[0]) {
             memberRecord = profileById.data[0];
@@ -271,6 +567,18 @@ async function getCurrentActorProfile() {
 
     const role = String(profileRecord?.user_role || memberRecord?.user_role || "").trim() || "Volunteer";
     const location = String(profileRecord?.location || memberRecord?.location || "").trim() || null;
+
+    profileRecord = await ensureProfileRecord(
+        {
+            id: authId || null,
+            email,
+            full_name: fullName,
+            user_role: role,
+            location
+        },
+        profileRecord,
+        memberRecord
+    ) || profileRecord;
 
     if (memberRecord && profileRecord?.id && !memberRecord?.profile_id) {
         try {
@@ -483,8 +791,20 @@ function buildSafetyMeta(request) {
 function enrichRequest(request) {
     const specificDetails = ensureObject(request?.specific_details);
     const participants = getParticipantsStore(specificDetails);
-    const requesterId = normalizeIdentity(request?.created_by || participants.requester_id || participants.requester_email);
-    const volunteerId = normalizeIdentity(request?.assigned_volunteer || participants.volunteer_id || participants.volunteer_email);
+    const requesterId = normalizeIdentity(
+        request?.requester_profile_id
+        || request?.requester_email
+        || request?.created_by
+        || participants.requester_id
+        || participants.requester_email
+    );
+    const volunteerId = normalizeIdentity(
+        request?.assigned_volunteer_profile_id
+        || request?.assigned_volunteer_email
+        || request?.assigned_volunteer
+        || participants.volunteer_id
+        || participants.volunteer_email
+    );
     const requesterName = String(participants.requester_name || "").trim() || deriveDisplayName(requesterId);
     const volunteerName = String(participants.volunteer_name || "").trim() || (volunteerId ? deriveDisplayName(volunteerId) : "");
 
@@ -504,7 +824,11 @@ function canActorCancelRequest(request, actor) {
     const specificDetails = ensureObject(request?.specific_details);
     const participants = getParticipantsStore(specificDetails);
     const requesterIdentity = normalizeIdentity(
-        request?.created_by || participants.requester_id || participants.requester_email
+        request?.requester_profile_id
+        || request?.requester_email
+        || request?.created_by
+        || participants.requester_id
+        || participants.requester_email
     );
     if (!requesterIdentity) return false;
     const isRequester = actorOwnsIdentity(requesterIdentity, actor);
@@ -528,23 +852,11 @@ function identityBelongsToAliases(identityValue, aliases) {
 }
 
 function isRequesterForActor(request, actorLike) {
-    const participants = getParticipantsStore(request?.specific_details);
-    const candidates = [
-        request?.created_by,
-        participants.requester_id,
-        participants.requester_email
-    ];
-    return candidates.some((value) => identityBelongsToAliases(value, actorLike?.aliases));
+    return getRequesterCandidates(request).some((value) => identityBelongsToAliases(value, actorLike?.aliases));
 }
 
 function isVolunteerForActor(request, actorLike) {
-    const participants = getParticipantsStore(request?.specific_details);
-    const candidates = [
-        request?.assigned_volunteer,
-        participants.volunteer_id,
-        participants.volunteer_email
-    ];
-    return candidates.some((value) => identityBelongsToAliases(value, actorLike?.aliases));
+    return getVolunteerCandidates(request).some((value) => identityBelongsToAliases(value, actorLike?.aliases));
 }
 
 function getLatestRequestActivityAt(request) {
@@ -645,18 +957,12 @@ function computeMemberProgressMetrics(rows, actorLike) {
 async function fetchRequestsForAliases(aliases) {
     const cleanAliases = uniqueNormalized(aliases);
     if (!cleanAliases.length) return [];
+    const result = await supabase.from("help_requests").select("*");
+    throwIfQueryFailed("Loading help request progress", result);
 
-    let requesterQuery = supabase.from("help_requests").select("*");
-    requesterQuery = applyIdentityFilter(requesterQuery, "created_by", cleanAliases);
-
-    let volunteerQuery = supabase.from("help_requests").select("*");
-    volunteerQuery = applyIdentityFilter(volunteerQuery, "assigned_volunteer", cleanAliases);
-
-    const [requesterResult, volunteerResult] = await Promise.all([requesterQuery, volunteerQuery]);
-    throwIfQueryFailed("Loading requester progress", requesterResult);
-    throwIfQueryFailed("Loading volunteer progress", volunteerResult);
-
-    return mergeRequestsById([requesterResult.data, volunteerResult.data]);
+    return ensureArray(result.data).filter((row) => (
+        isRequesterForActor(row, { aliases: cleanAliases }) || isVolunteerForActor(row, { aliases: cleanAliases })
+    ));
 }
 
 async function upsertMemberRecordProgress(actorLike, metrics) {
@@ -751,8 +1057,7 @@ async function upsertMemberRecordProgress(actorLike, metrics) {
                 .update(payload)
                 .eq("email", normalizedEmail);
             if (!updateResult.error) return;
-            const msg = String(updateResult.error?.message || "").toLowerCase();
-            if (!(msg.includes("column") && msg.includes("does not exist"))) {
+            if (!hasMissingColumnError(updateResult.error)) {
                 return;
             }
         }
@@ -764,8 +1069,7 @@ async function upsertMemberRecordProgress(actorLike, metrics) {
         if (!cleanPayload.id) delete cleanPayload.id;
         const insertResult = await supabase.from("member_records").insert([cleanPayload]);
         if (!insertResult.error) return;
-        const msg = String(insertResult.error?.message || "").toLowerCase();
-        if (!(msg.includes("column") && msg.includes("does not exist"))) {
+        if (!hasMissingColumnError(insertResult.error)) {
             return;
         }
     }
@@ -825,16 +1129,14 @@ async function appendWorkHistoryEntries(entries = []) {
 
 async function loadAssignedActiveMissionOrThrow(requestId, actor = null) {
     const currentActor = actor || await getCurrentActorProfile();
-    let query = supabase
+    const query = supabase
         .from("help_requests")
-        .select("id, title, status, assigned_volunteer, created_by, category, specific_details, roadmap")
-        .eq("id", requestId)
-        .eq("status", "on_progress");
-    query = applyIdentityFilter(query, "assigned_volunteer", currentActor.aliases);
+        .select("*")
+        .eq("id", requestId);
 
     const { data: mission, error } = await query.single();
 
-    if (error || !mission) {
+    if (error || !mission || String(mission.status || "") !== "on_progress" || !isVolunteerForActor(mission, currentActor)) {
         throw new Error("Mission not found or not assigned to you.");
     }
     return mission;
@@ -1134,26 +1436,29 @@ export const BackendService = {
         });
 
         // --- C. DATABASE INSERT ---
-        const { data, error } = await supabase
-            .from('help_requests')
-            .insert([{ 
-                title,
-                urgency,
-                category: category,
-                location_text: location, 
-                description: finalDescription,
-                specific_details: specificDetails, 
-                status: 'queued',
-                created_by: actor.identity,
-                roadmap: [{
-                    stage: "Request Created",
-                    timestamp: nowIso,
-                    completed: true,
-                    event_type: "request_created",
-                    actor: actor.identity
-                }]
-            }])
-            .select();
+        const createPayload = {
+            title,
+            urgency,
+            category: category,
+            location_text: location,
+            description: finalDescription,
+            specific_details: specificDetails,
+            status: "queued",
+            created_by: actor.identity,
+            requester_profile_id: actor.identity,
+            requester_email: actor.email,
+            roadmap: [{
+                stage: "Request Created",
+                timestamp: nowIso,
+                completed: true,
+                event_type: "request_created",
+                actor: actor.identity
+            }]
+        };
+        const { data, error } = await runHelpRequestWrite(
+            (payload) => supabase.from("help_requests").insert([payload]).select(),
+            createPayload
+        );
 
         if (error) throw error;
         const created = enrichRequest(data[0]);
@@ -1197,7 +1502,7 @@ export const BackendService = {
 
         const { data: request, error: fetchError } = await supabase
             .from("help_requests")
-            .select("id, title, status, created_by, assigned_volunteer, specific_details, roadmap")
+            .select("*")
             .eq("id", requestId)
             .single();
 
@@ -1242,7 +1547,7 @@ export const BackendService = {
             requester_id: requesterIdentity,
             requester_email: participants.requester_email || (requesterIdentity.includes("@") ? requesterIdentity : null),
             requester_name: String(participants.requester_name || "").trim() || actor.fullName,
-            volunteer_id: normalizeIdentity(request.assigned_volunteer || participants.volunteer_id || participants.volunteer_email) || null,
+            volunteer_id: getAssignedVolunteerIdentity(request) || null,
             volunteer_email: participants.volunteer_email || null,
             volunteer_name: String(participants.volunteer_name || "").trim() || null
         });
@@ -1266,7 +1571,7 @@ export const BackendService = {
         const volunteerEmail = normalizeIdentity(
             participants.volunteer_email
             || (String(participants.volunteer_id || "").includes("@") ? participants.volunteer_id : null)
-            || (String(request.assigned_volunteer || "").includes("@") ? request.assigned_volunteer : null)
+            || (String(getAssignedVolunteerIdentity(request) || "").includes("@") ? getAssignedVolunteerIdentity(request) : null)
         );
 
         await appendWorkHistoryEntries([
@@ -1314,7 +1619,7 @@ export const BackendService = {
         if (volunteerEmail && volunteerEmail !== actor.email) {
             try {
                 await syncMemberProgressFromAliases({
-                    aliases: [request.assigned_volunteer, participants.volunteer_id, volunteerEmail],
+                    aliases: [getAssignedVolunteerIdentity(request), participants.volunteer_id, volunteerEmail],
                     email: volunteerEmail,
                     fullName: participants.volunteer_name || deriveDisplayName(volunteerEmail),
                     authId: String(participants.volunteer_id || "").includes("@") ? null : normalizeIdentity(participants.volunteer_id)
@@ -1332,49 +1637,33 @@ export const BackendService = {
     // ============================================================
     async getVolunteerDashboard() {
         const actor = await getCurrentActorProfile();
-        let activeQuery = supabase.from("help_requests").select("*").eq("status", "on_progress");
-        activeQuery = applyIdentityFilter(activeQuery, "assigned_volunteer", actor.aliases);
+        const requestsResult = await supabase
+            .from("help_requests")
+            .select("*")
+            .order("created_at", { ascending: false });
+        throwIfQueryFailed("Loading volunteer missions", requestsResult);
 
-        let completedHistoryQuery = supabase.from("help_requests").select("*").eq("status", "completed");
-        completedHistoryQuery = applyIdentityFilter(completedHistoryQuery, "assigned_volunteer", actor.aliases);
-
-        let cancelledHistoryQuery = supabase.from("help_requests").select("*").eq("status", "cancelled");
-        cancelledHistoryQuery = applyIdentityFilter(cancelledHistoryQuery, "assigned_volunteer", actor.aliases);
-
-        // Optimized: Parallel execution
-        const [urgent, active, completedHistory, cancelledHistory] = await Promise.all([
-            // a) Urgent Needs (Queued, Unassigned)
-            supabase.from('help_requests')
-                .select('*')
-                .eq('status', 'queued')
-                .is('assigned_volunteer', null)
-                .order('created_at', { ascending: false }),
-
-            // b) Current Resolves (Assigned to ME, In Progress)
-            activeQuery,
-
-            // c) Completed (Assigned to ME, Completed)
-            completedHistoryQuery,
-
-            // d) Cancelled (Assigned to ME, Cancelled by requester)
-            cancelledHistoryQuery
-        ]);
-
-        throwIfQueryFailed("Loading urgent missions", urgent);
-        throwIfQueryFailed("Loading active missions", active);
-        throwIfQueryFailed("Loading completed missions", completedHistory);
-        throwIfQueryFailed("Loading cancelled missions", cancelledHistory);
-
-        const urgentNeeds = sortRequestsByUrgencyThenOldest((urgent.data || [])
+        const requestRows = ensureArray(requestsResult.data);
+        const urgentNeeds = sortRequestsByUrgencyThenOldest(requestRows
+            .filter((row) => String(row?.status || "") === "queued" && !requestHasAssignedVolunteer(row))
             .filter((row) => {
                 const participants = getParticipantsStore(row?.specific_details);
                 const requesterIdentity = normalizeIdentity(
-                    row?.created_by || participants.requester_id || participants.requester_email
+                    row?.requester_profile_id
+                    || row?.requester_email
+                    || row?.created_by
+                    || participants.requester_id
+                    || participants.requester_email
                 );
                 return !requesterIdentity || !actorOwnsIdentity(requesterIdentity, actor);
             })
             .map(enrichRequest));
-        const historyRows = [...(completedHistory.data || []), ...(cancelledHistory.data || [])]
+        const activeRows = requestRows
+            .filter((row) => String(row?.status || "") === "on_progress")
+            .filter((row) => isVolunteerForActor(row, actor));
+        const historyRows = requestRows
+            .filter((row) => ["completed", "cancelled"].includes(String(row?.status || "")))
+            .filter((row) => isVolunteerForActor(row, actor))
             .sort((a, b) => {
                 const left = new Date(a?.created_at || 0).getTime();
                 const right = new Date(b?.created_at || 0).getTime();
@@ -1395,7 +1684,7 @@ export const BackendService = {
 
         return {
             urgentNeeds,
-            currentResolves: (active.data || []).map(enrichRequest),
+            currentResolves: activeRows.map(enrichRequest),
             completedResolves: historyRows
         };
     },
@@ -1413,7 +1702,7 @@ export const BackendService = {
 
         const rows = ensureArray(requestsResult.data).map(enrichForCommandCenter);
         const queue = sortRequestsByUrgencyThenOldest(
-            rows.filter((row) => String(row?.status || "") === "queued" && !normalizeIdentity(row?.assigned_volunteer))
+            rows.filter((row) => String(row?.status || "") === "queued" && !requestHasAssignedVolunteer(row))
         );
         const active = rows
             .filter((row) => String(row?.status || "") === "on_progress")
@@ -1428,7 +1717,9 @@ export const BackendService = {
             return {
                 ...responder,
                 active_missions: activeMissions,
-                availability: activeMissions > 0 ? "engaged" : "available"
+                remaining_capacity: Math.max(0, MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS - activeMissions),
+                max_active_missions: MAX_SIMULTANEOUS_VOLUNTEER_ASSIGNMENTS,
+                availability: getVolunteerCapacityState(activeMissions)
             };
         });
 
@@ -1468,7 +1759,7 @@ export const BackendService = {
 
         const { data: mission, error: missionError } = await supabase
             .from("help_requests")
-            .select("id, title, status, created_by, assigned_volunteer, category, specific_details, roadmap")
+            .select("*")
             .eq("id", requestId)
             .single();
         if (missionError || !mission) {
@@ -1482,7 +1773,11 @@ export const BackendService = {
 
         const currentParticipants = getParticipantsStore(mission.specific_details);
         const currentVolunteerIdentity = normalizeIdentity(
-            mission.assigned_volunteer || currentParticipants.volunteer_id || currentParticipants.volunteer_email
+            mission.assigned_volunteer_profile_id
+            || mission.assigned_volunteer_email
+            || mission.assigned_volunteer
+            || currentParticipants.volunteer_id
+            || currentParticipants.volunteer_email
         );
         const responderIdentity = normalizeIdentity(responder.identity || responder.email);
         if (!responderIdentity) {
@@ -1492,7 +1787,7 @@ export const BackendService = {
         if (currentStatus === "on_progress" && currentVolunteerIdentity === responderIdentity) {
             throw new Error("Case is already assigned to this responder.");
         }
-        if (currentStatus === "queued" && normalizeIdentity(mission.assigned_volunteer)) {
+        if (currentStatus === "queued" && requestHasAssignedVolunteer(mission)) {
             throw new Error("Case is already assigned. Refresh the dashboard.");
         }
 
@@ -1504,6 +1799,11 @@ export const BackendService = {
         const nowIso = getNowIso();
         const note = normalizeShortText(options?.note || "", 220);
         const requesterContext = getRequesterContext(mission);
+        if (requesterMatchesResponder(requesterContext, responder)) {
+            throw new Error("Requester cannot be assigned as the volunteer for this case.");
+        }
+        const activeAssignments = await loadActiveVolunteerAssignments(responder.aliases);
+        assertVolunteerHasCapacity(activeAssignments.length);
         const responderName = responder.full_name || deriveDisplayName(responder.email || responder.identity);
 
         let updatedSpecificDetails = mergeParticipantsIntoSpecificDetails(mission.specific_details, {
@@ -1566,35 +1866,38 @@ export const BackendService = {
             });
         }
 
-        let updateQuery = supabase
-            .from("help_requests")
-            .update({
-                status: "on_progress",
-                assigned_volunteer: responder.identity || responderIdentity,
-                roadmap: updatedRoadmap,
-                specific_details: updatedSpecificDetails
-            })
-            .eq("id", requestId);
+        const dispatchPayload = {
+            status: "on_progress",
+            assigned_volunteer: responder.identity || responderIdentity,
+            assigned_volunteer_profile_id: responder.identity || responderIdentity,
+            assigned_volunteer_email: responder.email || (responderIdentity.includes("@") ? responderIdentity : null),
+            roadmap: updatedRoadmap,
+            specific_details: updatedSpecificDetails
+        };
+        const { data: updatedRows, error: updateError } = await runHelpRequestWrite((payload) => {
+            let updateQuery = supabase
+                .from("help_requests")
+                .update(payload)
+                .eq("id", requestId);
 
-        if (currentStatus === "queued") {
-            updateQuery = updateQuery.eq("status", "queued").is("assigned_volunteer", null);
-        } else {
-            updateQuery = updateQuery.eq("status", "on_progress");
-            if (normalizeIdentity(mission.assigned_volunteer)) {
-                updateQuery = updateQuery.eq("assigned_volunteer", mission.assigned_volunteer);
+            if (currentStatus === "queued") {
+                updateQuery = updateQuery.eq("status", "queued");
+            } else {
+                updateQuery = updateQuery.eq("status", "on_progress");
             }
-        }
 
-        const { data: updatedRows, error: updateError } = await updateQuery.select("id, status, assigned_volunteer, specific_details, roadmap");
+            return updateQuery.select("*");
+        }, dispatchPayload);
         if (updateError) throw updateError;
         if (!updatedRows || updatedRows.length === 0) {
             throw new Error("Case changed while dispatching. Refresh and try again.");
         }
 
         const previousVolunteerEmail = normalizeIdentity(
-            currentParticipants.volunteer_email
+            mission.assigned_volunteer_email
+            || currentParticipants.volunteer_email
             || (String(currentParticipants.volunteer_id || "").includes("@") ? currentParticipants.volunteer_id : null)
-            || (String(mission.assigned_volunteer || "").includes("@") ? mission.assigned_volunteer : null)
+            || (String(getAssignedVolunteerIdentity(mission) || "").includes("@") ? getAssignedVolunteerIdentity(mission) : null)
         );
         const actionVerb = currentStatus === "queued" ? "Dispatched" : "Handover";
 
@@ -1673,7 +1976,7 @@ export const BackendService = {
         });
         if (currentStatus === "on_progress" && previousVolunteerEmail && previousVolunteerEmail !== responder.email) {
             await syncProgressForActorLike({
-                aliases: [mission.assigned_volunteer, currentParticipants.volunteer_id, previousVolunteerEmail],
+                aliases: [getAssignedVolunteerIdentity(mission), currentParticipants.volunteer_id, previousVolunteerEmail],
                 email: previousVolunteerEmail,
                 full_name: currentParticipants.volunteer_name || deriveDisplayName(previousVolunteerEmail),
                 identity: currentParticipants.volunteer_id
@@ -1693,20 +1996,10 @@ export const BackendService = {
     async acceptRequest(requestId, _category, _specificDetails) {
         const actor = await getCurrentActorProfile();
 
-        // Operational safeguard: in this build, a responder can hold only one active mission.
-        let activeMissionQuery = supabase.from("help_requests").select("id").eq("status", "on_progress");
-        activeMissionQuery = applyIdentityFilter(activeMissionQuery, "assigned_volunteer", actor.aliases);
-        const activeMissionResult = await activeMissionQuery;
-        throwIfQueryFailed("Loading responder active mission", activeMissionResult);
-        const existingActive = ensureArray(activeMissionResult.data).find((row) => String(row?.id || "") !== String(requestId));
-        if (existingActive) {
-            throw new Error("You already have an active mission. Complete it before claiming a new one.");
-        }
-
         // Fetch queued mission from DB (do not trust category/details from client)
         const { data: mission, error: missionError } = await supabase
             .from("help_requests")
-            .select("id, title, status, created_by, assigned_volunteer, category, specific_details")
+            .select("*")
             .eq("id", requestId)
             .single();
 
@@ -1716,11 +2009,17 @@ export const BackendService = {
 
         const missionParticipants = getParticipantsStore(mission.specific_details);
         const missionCreator = normalizeIdentity(
-            mission.created_by || missionParticipants.requester_id || missionParticipants.requester_email
+            mission.requester_profile_id
+            || mission.requester_email
+            || mission.created_by
+            || missionParticipants.requester_id
+            || missionParticipants.requester_email
         );
         if (missionCreator && actorOwnsIdentity(missionCreator, actor)) {
             throw new Error("You cannot volunteer for your own help request.");
         }
+        const activeAssignments = await loadActiveVolunteerAssignments(actor.aliases);
+        assertVolunteerHasCapacity(activeAssignments.length);
 
         // Determine Roadmap Template based on DB values
         const templateKey = getTemplateKey(mission.category, mission.specific_details);
@@ -1757,7 +2056,13 @@ export const BackendService = {
         ];
 
         const existingParticipants = getParticipantsStore(mission.specific_details);
-        const requesterIdentity = normalizeIdentity(existingParticipants.requester_id || existingParticipants.requester_email || mission.created_by);
+        const requesterIdentity = normalizeIdentity(
+            mission.requester_profile_id
+            || mission.requester_email
+            || existingParticipants.requester_id
+            || existingParticipants.requester_email
+            || mission.created_by
+        );
         const requesterName = String(existingParticipants.requester_name || "").trim() || deriveDisplayName(requesterIdentity);
         let updatedSpecificDetails = mergeSafetyIntoSpecificDetails(mission.specific_details, initialSafety);
         updatedSpecificDetails = mergeParticipantsIntoSpecificDetails(updatedSpecificDetails, {
@@ -1769,18 +2074,22 @@ export const BackendService = {
             volunteer_name: actor.fullName
         });
 
-        const { data, error } = await supabase
-            .from('help_requests')
-            .update({ 
-                status: 'on_progress',
-                assigned_volunteer: actor.identity,
-                roadmap: initialRoadmap,
-                specific_details: updatedSpecificDetails
-            })
-            .eq('id', requestId)
-            .eq('status', 'queued')
-            .is('assigned_volunteer', null)
-            .select('id');
+        const acceptPayload = {
+            status: "on_progress",
+            assigned_volunteer: actor.identity,
+            assigned_volunteer_profile_id: actor.identity,
+            assigned_volunteer_email: actor.email,
+            roadmap: initialRoadmap,
+            specific_details: updatedSpecificDetails
+        };
+        const { data, error } = await runHelpRequestWrite((payload) => (
+            supabase
+                .from("help_requests")
+                .update(payload)
+                .eq("id", requestId)
+                .eq("status", "queued")
+                .select("*")
+        ), acceptPayload);
 
         if (error) throw error;
         if (!data || data.length === 0) {
@@ -1919,7 +2228,6 @@ export const BackendService = {
             })
             .eq("id", requestId)
             .eq("status", "on_progress");
-        updateQuery = applyIdentityFilter(updateQuery, "assigned_volunteer", actor.aliases);
         const { data, error } = await updateQuery.select("id");
 
         if (error) throw error;
@@ -2035,7 +2343,6 @@ export const BackendService = {
             })
             .eq("id", requestId)
             .eq("status", "on_progress");
-        updateQuery = applyIdentityFilter(updateQuery, "assigned_volunteer", actor.aliases);
         const { data, error } = await updateQuery.select("id, status, specific_details, roadmap");
 
         if (error) throw error;
@@ -2147,7 +2454,6 @@ export const BackendService = {
             })
             .eq("id", requestId)
             .eq("status", "on_progress");
-        updateQuery = applyIdentityFilter(updateQuery, "assigned_volunteer", actor.aliases);
         const { data, error } = await updateQuery.select("id, status, specific_details, roadmap");
 
         if (error) throw error;
@@ -2260,7 +2566,6 @@ export const BackendService = {
             })
             .eq("id", requestId)
             .eq("status", "on_progress");
-        updateQuery = applyIdentityFilter(updateQuery, "assigned_volunteer", actor.aliases);
         const { data, error } = await updateQuery.select("id, status, specific_details, roadmap");
 
         if (error) throw error;
@@ -2369,7 +2674,6 @@ export const BackendService = {
             })
             .eq("id", requestId)
             .eq("status", "on_progress");
-        updateQuery = applyIdentityFilter(updateQuery, "assigned_volunteer", actor.aliases);
         const { data, error } = await updateQuery.select("id, status, specific_details, roadmap");
 
         if (error) throw error;

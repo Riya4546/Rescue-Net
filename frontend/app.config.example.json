@@ -1,0 +1,15 @@
+{
+  "supabase": {
+    "url": "https://your-project.supabase.co",
+    "anonKey": "your-public-anon-key"
+  },
+  "services": {
+    "geocodingSearchUrl": "https://nominatim.openstreetmap.org/search?format=json&q={query}",
+    "geocodingSearchFallbackUrl": "https://photon.komoot.io/api/?q={query}&limit=8",
+    "geocodingReverseUrl": "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}",
+    "geocodingReverseFallbackUrl": "https://photon.komoot.io/reverse?lon={lon}&lat={lat}",
+    "medicineLookupUrl": "https://rxnav.nlm.nih.gov/REST/drugs.json?name={query}",
+    "medicineLabelUrl": "https://api.fda.gov/drug/label.json?search={search}&limit=25",
+    "specialistLookupUrl": "https://clinicaltables.nlm.nih.gov/api/npi_idv/v3/search?terms={query}&maxList=40"
+  }
+}

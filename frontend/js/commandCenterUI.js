@@ -108,7 +108,8 @@ function responderOptionLabel(responder) {
     const name = responder?.full_name || responder?.email || responder?.identity || "Responder";
     const email = responder?.email ? ` (${responder.email})` : "";
     const load = Number(responder?.active_missions || 0);
-    return `${name}${email} • ${load} active`;
+    const max = Number(responder?.max_active_missions || 3);
+    return `${name}${email} • ${load}/${max} active`;
 }
 
 function respondersOptions({
@@ -131,8 +132,10 @@ function respondersOptions({
         .map((responder) => {
             const key = responder.identity || responder.email;
             const isSelected = selectedKey && responder.aliases?.includes(selectedKey);
-            const disableForQueue = forQueue && Number(responder.active_missions || 0) > 0;
-            return `<option value="${esc(key)}" ${isSelected ? "selected" : ""} ${disableForQueue ? "disabled" : ""}>${esc(responderOptionLabel(responder))}</option>`;
+            const max = Number(responder.max_active_missions || 3);
+            const isAtCapacity = Number(responder.active_missions || 0) >= max;
+            const disableForAssignment = isAtCapacity || (forQueue && Number(responder.active_missions || 0) >= max);
+            return `<option value="${esc(key)}" ${isSelected ? "selected" : ""} ${disableForAssignment ? "disabled" : ""}>${esc(responderOptionLabel(responder))}</option>`;
         });
 
     return [`<option value="">Select responder...</option>`, ...options].join("");
@@ -148,14 +151,16 @@ function renderResponderDirectory() {
     }
 
     el.innerHTML = state.responders.map((responder) => {
-        const availability = responder.availability || "available";
+        const availability = String(responder.availability || "available").replace(/_/g, " ");
         const load = Number(responder.active_missions || 0);
+        const max = Number(responder.max_active_missions || 3);
+        const remaining = Number(responder.remaining_capacity || Math.max(0, max - load));
         return `
             <div class="responder-item">
                 <p class="responder-name">${esc(responder.full_name || responder.email || responder.identity)}</p>
                 <div class="responder-meta">${esc(responder.user_role || "Volunteer")}${responder.email ? ` • ${esc(responder.email)}` : ""}</div>
-                <div class="responder-meta">${load} active mission${load === 1 ? "" : "s"}</div>
-                <span class="status-pill ${availability}">${esc(availability)}</span>
+                <div class="responder-meta">${load}/${max} active missions • ${remaining} slot${remaining === 1 ? "" : "s"} left</div>
+                <span class="status-pill ${esc(responder.availability || "available")}">${esc(availability)}</span>
             </div>
         `;
     }).join("");

@@ -1,7 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+import { getSupabaseConfig } from "./appConfig.js";
 
-const supabaseUrl = "https://cmefmcawnugopzrotrem.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtZWZtY2F3bnVnb3B6cm90cmVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3MzY3NTIsImV4cCI6MjA4NjMxMjc1Mn0.KJu4XNLPdDp3Zs_fQpzPu-x7scdvoZ0IwMHMUKUGMgI";
+const { url: supabaseUrl, anonKey: supabaseKey } = getSupabaseConfig();
 
 export const OFFLINE_MODE_KEY = "rescuenet_offline_mode";
 export const OFFLINE_AUTH_KEY = "rescuenet_offline_user";
@@ -464,6 +464,17 @@ function makeAuthError(message, status = 400) {
     return { message, status };
 }
 
+function makeProfilesPersistenceError(error) {
+    const detail = String(error?.message || "").trim();
+    if (detail) {
+        return makeAuthError(`Unable to save account in profiles: ${detail}`, error?.status || 500);
+    }
+    return makeAuthError(
+        "Unable to save account in profiles. Check that the profiles table exists and supports inserts.",
+        500
+    );
+}
+
 async function hashPassword(password) {
     if (typeof TextEncoder === "undefined" || !globalThis.crypto?.subtle) {
         return password;
@@ -670,6 +681,7 @@ async function findMemberByEmail(client, email) {
         return { member: toAuthRecord(memberLookup.data[0], "member_records"), error: null };
     }
 
+    // Legacy read path only. We do not write auth data back into resources anymore.
     const fallbackLookup = await client
         .from("resources")
         .select("*")
@@ -728,8 +740,37 @@ async function insertMemberRecord(client, email, passwordHash, profile = {}) {
             password_hash: passwordHash
         }
     ];
+    const basicProfileInsertCandidates = [
+        { ...payloadBase, last_login_at: nowIso },
+        { ...payloadBase },
+        {
+            id: payloadBase.id,
+            email: payloadBase.email,
+            full_name: payloadBase.full_name,
+            user_role: payloadBase.user_role,
+            location: payloadBase.location
+        },
+        {
+            id: payloadBase.id,
+            email: payloadBase.email,
+            full_name: payloadBase.full_name
+        },
+        {
+            id: payloadBase.id,
+            email: payloadBase.email
+        },
+        {
+            email: payloadBase.email,
+            full_name: payloadBase.full_name
+        },
+        {
+            email: payloadBase.email
+        }
+    ];
 
-    for (const payload of profileInsertCandidates) {
+    let lastProfileError = null;
+
+    for (const payload of [...profileInsertCandidates, ...basicProfileInsertCandidates]) {
         const insertAttempt = await client
             .from("profiles")
             .insert(payload)
@@ -756,60 +797,11 @@ async function insertMemberRecord(client, email, passwordHash, profile = {}) {
         if (!isMissingColumnError(insertAttempt.error) && !isMissingRelationError(insertAttempt.error, "profiles")) {
             return { member: null, error: insertAttempt.error };
         }
+
+        lastProfileError = insertAttempt.error;
     }
 
-    let { data, error } = await client
-        .from("member_records")
-        .insert({ ...payloadBase, password_hash: passwordHash })
-        .select("*")
-        .limit(1);
-
-    if (error && /password_hash/i.test(error.message || "")) {
-        ({ data, error } = await client
-            .from("member_records")
-            .insert({ ...payloadBase, password: passwordHash })
-            .select("*")
-            .limit(1));
-    }
-
-    if (!error) {
-        const member = Array.isArray(data) && data.length ? toAuthRecord(data[0], "member_records", payloadBase) : null;
-        return { member, error: null };
-    }
-
-    const fallbackInsert = await client
-        .from("resources")
-        .insert({
-            title: normalizedEmail,
-            type: AUTH_RESOURCE_TYPE,
-            quantity: 1,
-            pickup_location: passwordHash,
-            offered_by: normalizedEmail
-        })
-        .select("*")
-        .limit(1);
-
-    if (fallbackInsert.error) {
-        return { member: null, error: fallbackInsert.error };
-    }
-
-    const row = Array.isArray(fallbackInsert.data) && fallbackInsert.data.length ? fallbackInsert.data[0] : null;
-    if (!row) {
-        return { member: null, error: makeAuthError("Unable to create account.") };
-    }
-
-    return {
-        member: toAuthRecord(
-            {
-                id: row.id,
-                email: normalizedEmail,
-                full_name: payloadBase.full_name,
-                pickup_location: row.pickup_location
-            },
-            "resources"
-        ),
-        error: null
-    };
+    return { member: null, error: makeProfilesPersistenceError(lastProfileError) };
 }
 
 async function updateMemberPassword(client, email, passwordHash) {
@@ -860,15 +852,7 @@ async function updateMemberPassword(client, email, passwordHash) {
             .eq("email", normalizedEmail));
     }
 
-    if (!legacyError) return null;
-
-    const fallbackUpdate = await client
-        .from("resources")
-        .update({ pickup_location: passwordHash })
-        .eq("type", AUTH_RESOURCE_TYPE)
-        .eq("offered_by", normalizedEmail);
-
-    return fallbackUpdate.error || null;
+    return legacyError || null;
 }
 
 async function ensureCredentialsInProfiles(client, member, passwordHash) {
@@ -943,7 +927,17 @@ function createTraditionalAuthSupabase(client) {
             }
 
             const passwordHash = await hashPassword(password);
-            const inserted = await insertMemberRecord(client, normalizedEmail, passwordHash);
+            const nativeSignup = await nativeAuth.signUp({ email: normalizedEmail, password });
+            if (nativeSignup.error) {
+                return { data: { user: null, session: null }, error: nativeSignup.error };
+            }
+
+            const inserted = await insertMemberRecord(client, normalizedEmail, passwordHash, {
+                id: nativeSignup.data?.user?.id || generateUuid(),
+                full_name: nativeSignup.data?.user?.user_metadata?.full_name || toTitleCase(normalizedEmail.split("@")[0]) || "Member",
+                user_role: "Volunteer",
+                location: null
+            });
             if (inserted.error || !inserted.member) {
                 return { data: { user: null, session: null }, error: inserted.error || makeAuthError("Unable to create account.") };
             }
@@ -952,8 +946,10 @@ function createTraditionalAuthSupabase(client) {
             await ensureMemberRecordMirror(client, profileRecord || inserted.member);
 
             const session = buildSessionFromMember(profileRecord || inserted.member);
-            setLocalAuthSession(session);
-            return { data: { user: session.user, session }, error: null };
+            return {
+                data: { user: session.user, session: nativeSignup.data?.session || session },
+                error: null
+            };
         },
 
         async signInWithPassword({ email, password }) {
@@ -968,54 +964,41 @@ function createTraditionalAuthSupabase(client) {
             }
 
             const member = lookup.member;
+            const supplied = await hashPassword(password);
             if (member) {
                 const stored = member.password_hash || member.password || null;
-                const supplied = await hashPassword(password);
-                if (!stored || stored !== supplied) {
-                    return { data: { user: null, session: null }, error: makeAuthError("Invalid login credentials.") };
+                if (stored && stored === supplied) {
+                    const syncedMember = await ensureCredentialsInProfiles(client, member, supplied);
+                    await ensureMemberRecordMirror(client, syncedMember || member);
+
+                    const session = buildSessionFromMember(syncedMember || member);
+                    return { data: { user: session.user, session }, error: null };
                 }
-
-                const syncedMember = await ensureCredentialsInProfiles(client, member, supplied);
-                await ensureMemberRecordMirror(client, syncedMember || member);
-
-                const session = buildSessionFromMember(syncedMember || member);
-                setLocalAuthSession(session);
-                return { data: { user: session.user, session }, error: null };
             }
 
-            // Fallback path for legacy Supabase-auth users.
-            const fallback = await nativeAuth.signInWithPassword({ email: normalizedEmail, password });
-            if (fallback.error || !fallback.data?.user) {
+            // Primary online auth path: use native Supabase Auth, then mirror identity metadata into profiles/member_records.
+            const nativeSignIn = await nativeAuth.signInWithPassword({ email: normalizedEmail, password });
+            if (nativeSignIn.error || !nativeSignIn.data?.user) {
                 return {
                     data: { user: null, session: null },
-                    error: fallback.error || makeAuthError("Invalid login credentials.")
+                    error: nativeSignIn.error || makeAuthError("Invalid login credentials.")
                 };
             }
 
-            const passwordHash = await hashPassword(password);
-            const linkedMember = await ensureMemberFromSupabaseAuth(client, fallback.data.user, normalizedEmail, passwordHash);
+            const linkedMember = await ensureMemberFromSupabaseAuth(client, nativeSignIn.data.user, normalizedEmail, supplied);
             const session = buildSessionFromMember(linkedMember || {
-                id: fallback.data.user.id,
+                id: nativeSignIn.data.user.id,
                 email: normalizedEmail,
-                full_name: fallback.data.user.user_metadata?.full_name
+                full_name: nativeSignIn.data.user.user_metadata?.full_name
             });
-            setLocalAuthSession(session);
             return { data: { user: session.user, session }, error: null };
         },
 
         async getUser() {
-            const localSession = getLocalAuthSession();
-            if (localSession?.user) {
-                return { data: { user: localSession.user }, error: null };
-            }
             return nativeAuth.getUser();
         },
 
         async getSession() {
-            const localSession = getLocalAuthSession();
-            if (localSession) {
-                return { data: { session: localSession }, error: null };
-            }
             if (typeof nativeAuth.getSession === "function") {
                 return nativeAuth.getSession();
             }
@@ -1051,4 +1034,4 @@ function createTraditionalAuthSupabase(client) {
     });
 }
 
-export const supabase = createTraditionalAuthSupabase(realSupabase);
+export const supabase = isOfflineMode() ? createMockSupabase() : createTraditionalAuthSupabase(realSupabase);
